@@ -12,4 +12,6 @@ __pycache__/
 
 .env
 .env.local
+.env*.local
+.firebase/
 .DS_Store
