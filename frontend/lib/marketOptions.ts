@@ -1,0 +1,67 @@
+export const MARKET_WATCHLIST = [
+  "0050.TW",
+  "0056.TW",
+  "006208.TW",
+  "00692.TW",
+  "00733.TW",
+  "00878.TW",
+  "00929.TW",
+  "2330.TW",
+  "2317.TW",
+  "2454.TW",
+  "2308.TW",
+  "2382.TW",
+  "2303.TW",
+  "3711.TW",
+  "2412.TW",
+  "AAPL",
+  "MSFT",
+  "NVDA",
+  "TSLA",
+  "GOOGL",
+  "AMZN",
+  "META",
+  "AVGO",
+  "SPY",
+  "QQQ",
+  "VOO",
+  "IVV",
+  "VTI",
+  "IWM",
+  "VO",
+  "SPLG",
+  "SCHD",
+  "VYM",
+  "DGRO",
+  "JEPI",
+  "QUAL",
+  "TLT",
+  "IEF",
+  "AGG",
+  "BND",
+  "VCIT",
+  "LQD",
+  "HYG",
+  "VEA",
+  "VXUS",
+  "EWJ",
+  "EWG",
+  "VNQ",
+  "XLK",
+  "XLF",
+  "SOXX",
+  "SMH",
+  "ARKK",
+  "XLE",
+  "MTUM",
+  "GLD"
+] as const;
+
+export const DEFAULT_SELECTED_SYMBOLS = ["0050.TW", "00878.TW", "2330.TW", "2454.TW", "AAPL", "NVDA", "MSFT", "GOOGL"];
+
+export function normalizeSymbols(value: string) {
+  return value
+    .split(",")
+    .map((symbol) => symbol.trim().toUpperCase())
+    .filter(Boolean);
+}
