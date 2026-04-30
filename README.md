@@ -120,9 +120,6 @@ Examples:
 - Exportable reports
 - Mobile-first portfolio monitoring
 
-## Disclaimer
-
-CashFlow is an educational software project. It does not provide financial, investment, legal, or tax advice. Market data may be delayed, simulated, incomplete, or inaccurate depending on configuration. Always do your own research and consult a qualified professional before making investment decisions.
 
 ## License
 
