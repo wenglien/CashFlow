@@ -64,7 +64,8 @@ async def answer_market_question(
     provider = settings.ai_provider.lower().strip()
     if provider == "groq":
         return await _answer_with_groq(question, snapshot, settings)
-    if not settings.openai_api_key:
+    openai_api_key = settings.openai_api_key.strip() if settings.openai_api_key else ""
+    if not openai_api_key:
         return MarketChatResponse(answer=_local_answer(question, snapshot), source="local", model=None, updatedAt=_now())
 
     instructions = (
@@ -85,7 +86,7 @@ async def answer_market_question(
             response = await client.post(
                 "https://api.openai.com/v1/responses",
                 headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Authorization": f"Bearer {openai_api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -113,7 +114,8 @@ async def _answer_with_groq(
     snapshot: MarketSnapshot,
     settings: Settings,
 ) -> MarketChatResponse:
-    if not settings.groq_api_key:
+    groq_api_key = settings.groq_api_key.strip() if settings.groq_api_key else ""
+    if not groq_api_key:
         return MarketChatResponse(answer=_local_answer(question, snapshot), source="local", model=None, updatedAt=_now())
 
     system_prompt = (
@@ -134,7 +136,7 @@ async def _answer_with_groq(
             response = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {settings.groq_api_key}",
+                    "Authorization": f"Bearer {groq_api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
