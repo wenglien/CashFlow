@@ -13,6 +13,27 @@ function formatNTD(value: number) {
   return `NT$${money.format(value)}`;
 }
 
+function chartLayout(width: number) {
+  const compact = width < 560;
+  return {
+    compact,
+    spacing: compact ? 0.78 : 1.35,
+    barWidth: compact ? 0.44 : 0.72,
+    barDepth: compact ? 0.56 : 0.86,
+    maxBarHeight: compact ? 2.25 : 2.8,
+    amountLabelScale: compact ? [0.9, 0.36, 1] as const : [1.48, 0.58, 1] as const,
+    axisLabelScale: compact ? [0.76, 0.22, 1] as const : [1.15, 0.3, 1] as const,
+    axisLabelZ: compact ? 0.94 : 1.25,
+    amountLabelLift: compact ? 0.36 : 0.55,
+    floorWidth: compact ? 5.4 : 8.6,
+    floorDepth: compact ? 4.65 : 5.1,
+    gridSize: compact ? 5.1 : 8,
+    cameraFov: compact ? 46 : 38,
+    cameraPosition: compact ? new THREE.Vector3(0, 3.65, 7.7) : new THREE.Vector3(0, 4.6, 8.1),
+    lookAt: compact ? new THREE.Vector3(0, 0.95, 0) : new THREE.Vector3(0, 1.05, 0)
+  };
+}
+
 function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
   context.beginPath();
   context.moveTo(x + radius, y);
@@ -27,7 +48,7 @@ function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, wi
   context.closePath();
 }
 
-function labelSprite(amount: string, title: string, color: string) {
+function labelSprite(amount: string, title: string, color: string, scale: readonly [number, number, number]) {
   const canvas = document.createElement("canvas");
   canvas.width = 300;
   canvas.height = 118;
@@ -54,11 +75,11 @@ function labelSprite(amount: string, title: string, color: string) {
 
   const texture = new THREE.CanvasTexture(canvas);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
-  sprite.scale.set(1.48, 0.58, 1);
+  sprite.scale.set(...scale);
   return sprite;
 }
 
-function axisLabelSprite(text: string) {
+function axisLabelSprite(text: string, scale: readonly [number, number, number], maxChars: number) {
   const canvas = document.createElement("canvas");
   canvas.width = 220;
   canvas.height = 56;
@@ -70,10 +91,10 @@ function axisLabelSprite(text: string) {
   context.fillStyle = "#edf2ef";
   context.font = "600 18px Arial";
   context.textAlign = "center";
-  context.fillText(text.slice(0, 13), canvas.width / 2, 34);
+  context.fillText(text.slice(0, maxChars), canvas.width / 2, 34);
   const texture = new THREE.CanvasTexture(canvas);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
-  sprite.scale.set(1.15, 0.3, 1);
+  sprite.scale.set(...scale);
   return sprite;
 }
 
@@ -89,13 +110,14 @@ export function CashFlowChart({ assets, capital }: { assets: AssetAllocation[]; 
       income: (capital * (asset.allocationPercent / 100) * asset.dividendYield) / 12
     }));
     const maxIncome = Math.max(...data.map((item) => item.income), 1);
+    const layout = chartLayout(host.clientWidth);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf7f9f6);
 
-    const camera = new THREE.PerspectiveCamera(38, host.clientWidth / host.clientHeight, 0.1, 100);
-    camera.position.set(0, 4.6, 8.1);
-    camera.lookAt(0, 1.05, 0);
+    const camera = new THREE.PerspectiveCamera(layout.cameraFov, host.clientWidth / host.clientHeight, 0.1, 100);
+    camera.position.copy(layout.cameraPosition);
+    camera.lookAt(layout.lookAt);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -112,7 +134,7 @@ export function CashFlowChart({ assets, capital }: { assets: AssetAllocation[]; 
     scene.add(light);
 
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(8.6, 5.1),
+      new THREE.PlaneGeometry(layout.floorWidth, layout.floorDepth),
       new THREE.MeshStandardMaterial({ color: 0xe7eee9, roughness: 0.88 })
     );
     floor.rotation.x = -Math.PI / 2;
@@ -120,16 +142,16 @@ export function CashFlowChart({ assets, capital }: { assets: AssetAllocation[]; 
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const grid = new THREE.GridHelper(8, 8, 0x8ca29a, 0xd3ded8);
+    const grid = new THREE.GridHelper(layout.gridSize, 8, 0x8ca29a, 0xd3ded8);
     grid.position.y = 0.012;
     grid.position.z = -0.12;
     scene.add(grid);
 
     const group = new THREE.Group();
-    const startX = -((data.length - 1) * 1.35) / 2;
+    const startX = -((data.length - 1) * layout.spacing) / 2;
     data.forEach((item, index) => {
-      const height = Math.max(0.2, (item.income / maxIncome) * 2.8);
-      const geometry = new THREE.BoxGeometry(0.72, height, 0.86);
+      const height = Math.max(0.16, (item.income / maxIncome) * layout.maxBarHeight);
+      const geometry = new THREE.BoxGeometry(layout.barWidth, height, layout.barDepth);
       const material = new THREE.MeshStandardMaterial({
         color: barColors[index % barColors.length],
         roughness: 0.28,
@@ -138,25 +160,25 @@ export function CashFlowChart({ assets, capital }: { assets: AssetAllocation[]; 
         emissiveIntensity: 0.025
       });
       const bar = new THREE.Mesh(geometry, material);
-      bar.position.set(startX + index * 1.35, height / 2, 0);
+      bar.position.set(startX + index * layout.spacing, height / 2, 0);
       bar.castShadow = true;
       bar.receiveShadow = true;
       group.add(bar);
 
       const cap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.76, 0.06, 0.9),
+        new THREE.BoxGeometry(layout.barWidth + 0.04, 0.06, layout.barDepth + 0.04),
         new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.18 })
       );
       cap.position.set(bar.position.x, height + 0.05, 0);
       cap.castShadow = true;
       group.add(cap);
 
-      const label = labelSprite(formatNTD(item.income), "每月預估", barColors[index % barColors.length]);
-      label.position.set(bar.position.x, height + 0.55, 0.1);
+      const label = labelSprite(formatNTD(item.income), "每月預估", barColors[index % barColors.length], layout.amountLabelScale);
+      label.position.set(bar.position.x, height + layout.amountLabelLift, 0.1);
       group.add(label);
 
-      const axisLabel = axisLabelSprite(item.name);
-      axisLabel.position.set(bar.position.x, 0.12, 1.25);
+      const axisLabel = axisLabelSprite(item.name, layout.axisLabelScale, layout.compact ? 8 : 13);
+      axisLabel.position.set(bar.position.x, 0.12, layout.axisLabelZ);
       group.add(axisLabel);
     });
 
@@ -164,7 +186,11 @@ export function CashFlowChart({ assets, capital }: { assets: AssetAllocation[]; 
 
     const resizeObserver = new ResizeObserver(() => {
       if (!host.clientWidth || !host.clientHeight) return;
+      const nextLayout = chartLayout(host.clientWidth);
+      camera.fov = nextLayout.cameraFov;
       camera.aspect = host.clientWidth / host.clientHeight;
+      camera.position.copy(nextLayout.cameraPosition);
+      camera.lookAt(nextLayout.lookAt);
       camera.updateProjectionMatrix();
       renderer.setSize(host.clientWidth, host.clientHeight);
     });
@@ -199,17 +225,17 @@ export function CashFlowChart({ assets, capital }: { assets: AssetAllocation[]; 
 
   return (
     <div className="relative">
-      <div ref={hostRef} className="h-[340px] w-full overflow-hidden rounded-lg bg-mist md:h-[390px]" data-testid="cashflow-chart-3d" />
-      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+      <div ref={hostRef} className="h-[300px] w-full min-w-0 overflow-hidden rounded-lg bg-mist sm:h-[340px] md:h-[390px]" data-testid="cashflow-chart-3d" />
+      <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {assets.map((asset, index) => {
           const income = (capital * (asset.allocationPercent / 100) * asset.dividendYield) / 12;
           return (
-            <div key={asset.assetName} className="flex items-center justify-between gap-3 rounded-md bg-mist px-3 py-2 text-xs">
+            <div key={asset.assetName} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md bg-mist px-3 py-2 text-xs">
               <span className="flex min-w-0 items-center gap-2 text-ink/65">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: barColors[index % barColors.length] }} />
                 <span className="truncate">{asset.assetName}</span>
               </span>
-              <span className="font-semibold text-ink">{formatNTD(income)}</span>
+              <span className="whitespace-nowrap font-semibold text-ink">{formatNTD(income)}</span>
             </div>
           );
         })}
