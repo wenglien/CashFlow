@@ -1,9 +1,11 @@
 "use client";
 
 import { Activity, Check, ListFilter, Search, Send, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_SELECTED_SYMBOLS, MARKET_WATCHLIST, normalizeSymbols } from "@/lib/marketOptions";
+
+const MARKET_SELECTION_STORAGE_KEY = "cashflow-market-selection-v1";
 
 const marketGroups = [
   {
@@ -36,12 +38,32 @@ const marketGroups = [
   }
 ];
 
+const presetSelections = [
+  {
+    label: "台美科技核心",
+    symbols: ["0050.TW", "2330.TW", "2454.TW", "AAPL", "MSFT", "NVDA", "GOOGL"]
+  },
+  {
+    label: "台股高息現金流",
+    symbols: ["0056.TW", "00878.TW", "00929.TW", "006208.TW", "2330.TW"]
+  },
+  {
+    label: "美股成長觀察",
+    symbols: ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META"]
+  },
+  {
+    label: "防守收益",
+    symbols: ["SCHD", "VYM", "JEPI", "TLT", "AGG", "BND"]
+  }
+];
+
 export function MarketDashboard() {
   const router = useRouter();
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(DEFAULT_SELECTED_SYMBOLS);
   const [customSymbols, setCustomSymbols] = useState("");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
+  const [hasLoadedSavedSelection, setHasLoadedSavedSelection] = useState(false);
   const selectedSet = useMemo(() => new Set(selectedSymbols), [selectedSymbols]);
 
   const submittedSymbols = useMemo(() => {
@@ -59,6 +81,29 @@ export function MarketDashboard() {
       }))
       .filter((group) => group.symbols.length > 0);
   }, [pickerQuery]);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(MARKET_SELECTION_STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as { selectedSymbols?: string[]; customSymbols?: string };
+        if (Array.isArray(parsed.selectedSymbols)) {
+          setSelectedSymbols(normalizeSymbols(parsed.selectedSymbols.join(",")));
+        }
+        if (typeof parsed.customSymbols === "string") {
+          setCustomSymbols(parsed.customSymbols);
+        }
+      } catch {
+        window.localStorage.removeItem(MARKET_SELECTION_STORAGE_KEY);
+      }
+    }
+    setHasLoadedSavedSelection(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedSavedSelection) return;
+    window.localStorage.setItem(MARKET_SELECTION_STORAGE_KEY, JSON.stringify({ selectedSymbols, customSymbols }));
+  }, [customSymbols, hasLoadedSavedSelection, selectedSymbols]);
 
   function toggleSymbol(symbol: string) {
     setSelectedSymbols((current) =>
@@ -143,6 +188,16 @@ export function MarketDashboard() {
             >
               全選清單
             </button>
+            {presetSelections.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                className="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                onClick={() => setSelectedSymbols(preset.symbols)}
+              >
+                {preset.label}
+              </button>
+            ))}
             <button
               type="button"
               className="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"

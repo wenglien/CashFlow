@@ -1,7 +1,7 @@
 "use client";
 
-import { Bot, Send, User } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { Bot, Clipboard, RotateCcw, Send, User } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { askMarketAi } from "@/lib/api";
 
 type ChatMessage = {
@@ -15,7 +15,8 @@ type ChatMessage = {
 const suggestions = [
   "這幾檔目前誰比較強勢？",
   "請比較股息率與風險",
-  "如果我是保守型投資人，要注意什麼？"
+  "如果我是保守型投資人，要注意什麼？",
+  "請幫我整理成三個配置重點"
 ];
 
 function sourceLabel(source: ChatMessage["source"], model?: string | null) {
@@ -25,16 +26,27 @@ function sourceLabel(source: ChatMessage["source"], model?: string | null) {
 }
 
 export function MarketAiChat({ symbols }: { symbols: string[] }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
+  const initialMessage = useMemo<ChatMessage>(
+    () => ({
       id: "intro",
       role: "assistant",
       content: "你可以針對目前選取的標的詢問漲跌、風險、股息率、成交量或配置方向。我會以教育用途的市場分析方式回答。"
-    }
+    }),
+    []
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    initialMessage
   ]);
   const [question, setQuestion] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "done" | "error">("idle");
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant" && message.id !== "intro");
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, isLoading, error]);
 
   async function ask(questionText: string) {
     const trimmed = questionText.trim();
@@ -74,6 +86,24 @@ export function MarketAiChat({ symbols }: { symbols: string[] }) {
     ask(question);
   }
 
+  async function copyLatestAnswer() {
+    if (!latestAssistant) return;
+    try {
+      await navigator.clipboard.writeText(latestAssistant.content);
+      setCopyState("done");
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    } catch {
+      setCopyState("error");
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    }
+  }
+
+  function resetChat() {
+    setMessages([initialMessage]);
+    setError(null);
+    setQuestion("");
+  }
+
   return (
     <section className="rounded-lg border border-ink/10 bg-white shadow-panel">
       <div className="border-b border-ink/10 p-5">
@@ -82,7 +112,34 @@ export function MarketAiChat({ symbols }: { symbols: string[] }) {
             <p className="text-sm font-semibold text-pine">AI 對話分析</p>
             <h2 className="mt-1 text-xl font-semibold">針對所選股市提問</h2>
           </div>
-          <div className="rounded-md bg-mist px-3 py-2 text-xs font-semibold text-ink/60">目前 {symbols.length} 檔標的</div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              className="flex items-center gap-1 rounded-md bg-mist px-3 py-2 text-xs font-semibold text-ink/60 hover:bg-ink hover:text-white"
+              onClick={copyLatestAnswer}
+              disabled={!latestAssistant}
+            >
+              <Clipboard size={13} />
+              {copyState === "done" ? "已複製" : copyState === "error" ? "無法複製" : "複製回答"}
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-1 rounded-md bg-mist px-3 py-2 text-xs font-semibold text-ink/60 hover:bg-ink hover:text-white"
+              onClick={resetChat}
+            >
+              <RotateCcw size={13} />
+              清除
+            </button>
+            <div className="rounded-md bg-mist px-3 py-2 text-xs font-semibold text-ink/60">目前 {symbols.length} 檔標的</div>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {symbols.slice(0, 10).map((symbol) => (
+            <span key={symbol} className="rounded-full bg-mist px-2.5 py-1 text-xs font-semibold text-ink/60">
+              {symbol}
+            </span>
+          ))}
+          {symbols.length > 10 ? <span className="rounded-full bg-mist px-2.5 py-1 text-xs font-semibold text-ink/45">+{symbols.length - 10}</span> : null}
         </div>
       </div>
 
@@ -111,6 +168,7 @@ export function MarketAiChat({ symbols }: { symbols: string[] }) {
         ))}
         {isLoading ? <div className="text-sm text-ink/55">AI 正在分析所選標的...</div> : null}
         {error ? <div className="rounded-md bg-coral/10 p-3 text-sm font-medium text-coral">{error}</div> : null}
+        <div ref={bottomRef} />
       </div>
 
       <div className="border-t border-ink/10 p-5">

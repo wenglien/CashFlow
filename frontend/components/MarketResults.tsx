@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart3, Clipboard, TrendingDown, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { MarketQuote, MarketSnapshot } from "@/lib/types";
 import { MarketScene3D } from "./MarketScene3D";
@@ -16,6 +16,17 @@ const compact = new Intl.NumberFormat("en", {
 
 function formatInstrumentMoney(_quote: Pick<MarketQuote, "symbol" | "tradeCurrency">, value: number) {
   return `NT$${twdFormatter.format(value)}`;
+}
+
+function formatUpdatedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function SignalBadge({ signal }: { signal: MarketQuote["signal"] }) {
@@ -199,19 +210,49 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
   const quotes = useMemo(() => snapshot.quotes, [snapshot]);
   const [selected, setSelected] = useState(quotes[0]?.symbol ?? "");
   const [signalFilter, setSignalFilter] = useState<"all" | MarketQuote["signal"]>("all");
+  const [sortBy, setSortBy] = useState<"change" | "volume" | "dividend" | "symbol">("change");
+  const [copyState, setCopyState] = useState<"idle" | "done" | "error">("idle");
   const selectedQuote = quotes.find((quote) => quote.symbol === selected) ?? quotes[0];
   const maxVolume = quotes.length ? Math.max(...quotes.map((quote) => quote.volume), 1) : 1;
-  const filteredQuotes = signalFilter === "all" ? quotes : quotes.filter((quote) => quote.signal === signalFilter);
+  const filteredQuotes = useMemo(() => {
+    const nextQuotes = signalFilter === "all" ? quotes : quotes.filter((quote) => quote.signal === signalFilter);
+    return [...nextQuotes].sort((a, b) => {
+      if (sortBy === "volume") return b.volume - a.volume;
+      if (sortBy === "dividend") return (b.dividendYield ?? 0) - (a.dividendYield ?? 0);
+      if (sortBy === "symbol") return a.symbol.localeCompare(b.symbol);
+      return b.changePercent - a.changePercent;
+    });
+  }, [quotes, signalFilter, sortBy]);
   const positiveCount = quotes.filter((quote) => quote.changePercent >= 0).length;
   const averageChange = quotes.length ? quotes.reduce((sum, quote) => sum + quote.changePercent, 0) / quotes.length : 0;
   const strongest = [...quotes].sort((a, b) => b.changePercent - a.changePercent)[0];
   const weakest = [...quotes].sort((a, b) => a.changePercent - b.changePercent)[0];
+  const updatedAt = formatUpdatedAt(snapshot.updatedAt);
+  const summaryText = [
+    `CashFlow 市場摘要（${updatedAt}）`,
+    snapshot.summary,
+    `平均漲跌：${averageChange >= 0 ? "+" : ""}${averageChange.toFixed(2)}%`,
+    `最強標的：${strongest?.symbol ?? "N/A"} ${strongest ? `${strongest.changePercent >= 0 ? "+" : ""}${strongest.changePercent.toFixed(2)}%` : ""}`,
+    `需留意：${weakest?.symbol ?? "N/A"} ${weakest ? `${weakest.changePercent >= 0 ? "+" : ""}${weakest.changePercent.toFixed(2)}%` : ""}`,
+    ...quotes.map((quote) => `${quote.symbol}: ${formatInstrumentMoney(quote, quote.price)} / ${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}% / ${quote.signal}`)
+  ].join("\n");
   const signalTabs: Array<{ value: "all" | MarketQuote["signal"]; label: string }> = [
     { value: "all", label: "全部" },
     { value: "bullish", label: "偏多" },
     { value: "neutral", label: "中性" },
     { value: "caution", label: "謹慎" }
   ];
+
+  async function copySummary() {
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      setCopyState("done");
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    } catch {
+      setCopyState("error");
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    }
+  }
 
   return (
     <section className="grid gap-4">
@@ -223,7 +264,7 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/75">{snapshot.summary}</p>
           </div>
           <div className="rounded-md bg-white/10 px-3 py-2 text-xs font-medium text-white/75">
-            共 {quotes.length} 檔，資料來源：{snapshot.source}
+            共 {quotes.length} 檔，資料來源：{snapshot.source}，更新 {updatedAt}
           </div>
         </div>
       </div>
@@ -267,19 +308,44 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
             <MarketScene3D quotes={quotes} selectedSymbol={selectedQuote?.symbol} />
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {signalTabs.map((tab) => (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {signalTabs.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`rounded-md px-3 py-2 text-sm font-semibold ${
+                    signalFilter === tab.value ? "bg-pine text-white" : "bg-white text-ink/65 shadow-panel hover:bg-mist"
+                  }`}
+                  onClick={() => setSignalFilter(tab.value)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-ink/65 shadow-panel">
+                排序
+                <select
+                  className="bg-transparent text-sm font-semibold outline-none"
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+                >
+                  <option value="change">漲跌幅</option>
+                  <option value="volume">成交量</option>
+                  <option value="dividend">股息率</option>
+                  <option value="symbol">代號</option>
+                </select>
+              </label>
               <button
-                key={tab.value}
                 type="button"
-                className={`rounded-md px-3 py-2 text-sm font-semibold ${
-                  signalFilter === tab.value ? "bg-pine text-white" : "bg-white text-ink/65 shadow-panel hover:bg-mist"
-                }`}
-                onClick={() => setSignalFilter(tab.value)}
+                className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-ink/65 shadow-panel hover:bg-mist"
+                onClick={copySummary}
               >
-                {tab.label}
+                <Clipboard size={15} />
+                {copyState === "done" ? "已複製" : copyState === "error" ? "無法複製" : "複製摘要"}
               </button>
-            ))}
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
