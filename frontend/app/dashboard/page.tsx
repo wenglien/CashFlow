@@ -33,6 +33,69 @@ const sample: SimulationResult = {
       "用 2330、2454 或 2308 小比例補足科技龍頭曝險。",
       "用 AAPL、MSFT 或 NVDA 小比例納入美國科技股衛星配置。",
       "保留台幣債券、貨幣基金與現金以降低回撤。"
+    ],
+    portfolioBlueprint: [
+      {
+        title: "台股市值型 ETF",
+        role: "核心配置",
+        allocationPercent: 30,
+        amount: 300000,
+        guidance: "作為長期核心，適合分批投入並定期再平衡，避免短線行情改變整體策略。",
+        symbols: ["0050.TW", "006208.TW"]
+      },
+      {
+        title: "台股高股息 ETF",
+        role: "核心配置",
+        allocationPercent: 30,
+        amount: 300000,
+        guidance: "用來補強每月現金流，但不要只追高配息；仍要搭配市值型 ETF 分散來源。",
+        symbols: ["00878.TW", "0056.TW"]
+      },
+      {
+        title: "台股科技龍頭",
+        role: "衛星成長",
+        allocationPercent: 10,
+        amount: 100000,
+        guidance: "用小比例追求成長，單一個股或題材不要超過整體組合的衛星配置。",
+        symbols: ["2330.TW"]
+      },
+      {
+        title: "美國科技股衛星",
+        role: "衛星成長",
+        allocationPercent: 10,
+        amount: 100000,
+        guidance: "用小比例追求成長，單一個股或題材不要超過整體組合的衛星配置。",
+        symbols: ["NVDA", "MSFT"]
+      },
+      {
+        title: "台幣債券／貨幣基金",
+        role: "防守與流動性",
+        allocationPercent: 10,
+        amount: 100000,
+        guidance: "放在低波動工具，降低整體回撤；若風險分數偏高，可優先從衛星部位挪一部分到這裡。",
+        symbols: ["00679B.TW"]
+      },
+      {
+        title: "現金",
+        role: "防守與流動性",
+        allocationPercent: 10,
+        amount: 100000,
+        guidance: "保留可動用資金，遇到回撤時先用現金緩衝，不急著賣出核心部位。",
+        symbols: []
+      }
+    ]
+  },
+  aiInsight: {
+    headline: "系統模型顯示可作為基準配置，但 AI 建議補強現金流覆蓋",
+    systemSignal: "需調整",
+    aiSummary: "成功率接近可接受區間，但股息覆蓋率仍偏低。AI 建議以市值型 ETF 作核心，搭配高股息 ETF 與防守資產降低提領壓力。",
+    allocationGuidance: [
+      "先以 0050 或 006208 建立核心，再用 00878、0056 補足台幣現金流。",
+      "科技個股與美股衛星應維持小比例，避免單一題材主導回撤。",
+    ],
+    riskWarnings: [
+      "若目標月收入維持不變，需要定期檢查股息覆蓋率。",
+      "最大回撤壓力仍需預留現金或債券緩衝。",
     ]
   },
   candidates: [

@@ -67,6 +67,7 @@ function ScoreBreakdownRow({ item }: { item: ScoreItem }) {
 export function FundamentalDashboard({ data }: { data: FundamentalAnalysis }) {
   const { valuation, growth, market } = data;
   const currencyUnit = market === "TW" ? "元" : "USD";
+  const isEtf = data.industry === "ETF";
 
   // 財報圖:由舊到新排序,顯示營收(柱)與淨利率(線)。
   const statementChart = [...data.statements]
@@ -117,26 +118,48 @@ export function FundamentalDashboard({ data }: { data: FundamentalAnalysis }) {
 
       {/* 估值 */}
       <section className="grid gap-3">
-        <h2 className="text-sm font-semibold text-ink/60">估值指標</h2>
+        <h2 className="text-sm font-semibold text-ink/60">{isEtf ? "ETF 指標" : "估值指標"}</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="本益比 (PER)" value={fmtNum(valuation.per, 1)} hint={valuation.asOf ? `資料日 ${valuation.asOf}` : undefined} />
-          <Stat label="股價淨值比 (PBR)" value={fmtNum(valuation.pbr, 2)} />
-          <Stat label="殖利率" value={fmtPercent(valuation.dividendYield)} />
-          <Stat
-            label={market === "TW" ? "ROE" : "市值"}
-            value={market === "TW" ? fmtPercent(valuation.roe) : fmtBig(valuation.marketCap, market)}
-          />
+          {isEtf ? (
+            <>
+              <Stat label="最新收盤" value={fmtNum(valuation.latestPrice, 2)} hint={valuation.asOf ? `資料日 ${valuation.asOf}` : undefined} />
+              <Stat label="殖利率" value={fmtPercent(valuation.dividendYield)} />
+              <Stat label="近一日漲跌" value={fmtPercent(valuation.priceChangePercent)} />
+              <Stat label="年化波動" value={fmtPercent(valuation.volatilityPercent)} />
+            </>
+          ) : (
+            <>
+              <Stat label="本益比 (PER)" value={fmtNum(valuation.per, 1)} hint={valuation.asOf ? `資料日 ${valuation.asOf}` : undefined} />
+              <Stat label="股價淨值比 (PBR)" value={fmtNum(valuation.pbr, 2)} />
+              <Stat label="殖利率" value={fmtPercent(valuation.dividendYield)} />
+              <Stat
+                label={market === "TW" ? "ROE" : "市值"}
+                value={market === "TW" ? fmtPercent(valuation.roe) : fmtBig(valuation.marketCap, market)}
+              />
+            </>
+          )}
         </div>
       </section>
 
       {/* 成長性 */}
       <section className="grid gap-3">
-        <h2 className="text-sm font-semibold text-ink/60">成長性</h2>
+        <h2 className="text-sm font-semibold text-ink/60">{isEtf ? "價格表現" : "成長性"}</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="營收年增 (YoY)" value={fmtPercent(growth.revenueYoyPercent)} />
-          <Stat label={market === "TW" ? "營收月增 (MoM)" : "EPS 年增"} value={fmtPercent(market === "TW" ? growth.revenueMomPercent : growth.epsYoyPercent)} />
-          <Stat label="近四季 EPS (TTM)" value={fmtNum(growth.ttmEps)} hint={currencyUnit} />
-          <Stat label="EPS 年增" value={fmtPercent(growth.epsYoyPercent)} />
+          {isEtf ? (
+            <>
+              <Stat label="近一年報酬" value={fmtPercent(growth.revenueYoyPercent)} />
+              <Stat label="近一月報酬" value={fmtPercent(growth.revenueMomPercent)} />
+              <Stat label="近 20 日動能" value={fmtPercent(growth.epsYoyPercent)} />
+              <Stat label="最新收盤" value={fmtNum(growth.ttmEps)} hint={currencyUnit} />
+            </>
+          ) : (
+            <>
+              <Stat label="營收年增 (YoY)" value={fmtPercent(growth.revenueYoyPercent)} />
+              <Stat label={market === "TW" ? "營收月增 (MoM)" : "EPS 年增"} value={fmtPercent(market === "TW" ? growth.revenueMomPercent : growth.epsYoyPercent)} />
+              <Stat label="近四季 EPS (TTM)" value={fmtNum(growth.ttmEps)} hint={currencyUnit} />
+              <Stat label="EPS 年增" value={fmtPercent(growth.epsYoyPercent)} />
+            </>
+          )}
         </div>
       </section>
 
@@ -175,18 +198,18 @@ export function FundamentalDashboard({ data }: { data: FundamentalAnalysis }) {
         </section>
       ) : null}
 
-      {/* 月營收趨勢(台股) */}
+      {/* 月營收趨勢(台股) / ETF 價格趨勢 */}
       {revenueChart.length > 0 ? (
         <section className="grid gap-3 rounded-xl border border-ink/10 bg-white p-6">
-          <h2 className="text-sm font-semibold text-ink/60">月營收與年增率</h2>
+          <h2 className="text-sm font-semibold text-ink/60">{isEtf ? "近 60 日收盤趨勢" : "月營收與年增率"}</h2>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueChart} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#edf2ef" />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#17201d80" }} interval={1} />
-                <YAxis tick={{ fontSize: 11, fill: "#17201d80" }} tickFormatter={(v) => fmtBig(v, market)} width={60} />
-                <Tooltip formatter={(value: number, name: string) => (name === "營收" ? fmtBig(value, market) : fmtPercent(value))} />
-                <Bar dataKey="revenue" name="營收" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                <YAxis tick={{ fontSize: 11, fill: "#17201d80" }} tickFormatter={(v) => (isEtf ? fmtNum(v, 1) : fmtBig(v, market))} width={60} />
+                <Tooltip formatter={(value: number, name: string) => (isEtf || name === "收盤價" ? fmtNum(value, 2) : fmtBig(value, market))} />
+                <Bar dataKey="revenue" name={isEtf ? "收盤價" : "營收"} radius={[4, 4, 0, 0]} isAnimationActive={false}>
                   {revenueChart.map((entry, index) => (
                     <Cell key={index} fill={(entry.yoy ?? 0) >= 0 ? "#1f6f58" : "#ec7f67"} />
                   ))}
@@ -194,7 +217,7 @@ export function FundamentalDashboard({ data }: { data: FundamentalAnalysis }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-xs text-ink/40">綠色為年增正成長月份,珊瑚色為衰退月份。</p>
+          <p className="text-xs text-ink/40">{isEtf ? "綠色為較前一交易日上漲,珊瑚色為下跌。" : "綠色為年增正成長月份,珊瑚色為衰退月份。"}</p>
         </section>
       ) : null}
 

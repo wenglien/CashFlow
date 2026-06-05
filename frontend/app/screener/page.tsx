@@ -85,7 +85,7 @@ export default function ScreenerPage() {
                   key={m.key}
                   type="button"
                   onClick={() => update("market", m.key)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                  className={`min-h-11 rounded-md px-3 py-2.5 text-sm font-semibold transition ${
                     form.market === m.key ? "bg-pine text-white" : "bg-mist text-slate hover:text-ink"
                   }`}
                 >
@@ -106,18 +106,18 @@ export default function ScreenerPage() {
             </label>
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-slate">本益比 ≤</span>
-              <input type="number" min={0} placeholder="不限" value={form.maxPer ?? ""} onChange={(e) => update("maxPer", e.target.value ? Number(e.target.value) : null)} className="h-10 rounded-xl border border-line bg-surface px-3 text-sm outline-none focus:shadow-focus" />
+              <input type="number" min={0} placeholder="不限" value={form.maxPer ?? ""} onChange={(e) => update("maxPer", e.target.value ? Number(e.target.value) : null)} className="h-11 rounded-md border border-line bg-surface px-3 text-base outline-none focus:shadow-focus sm:text-sm" />
             </label>
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-slate">殖利率 ≥ (%)</span>
-              <input type="number" min={0} step={0.5} placeholder="不限" value={form.minDividendYield ?? ""} onChange={(e) => update("minDividendYield", e.target.value ? Number(e.target.value) : null)} className="h-10 rounded-xl border border-line bg-surface px-3 text-sm outline-none focus:shadow-focus" />
+              <input type="number" min={0} step={0.5} placeholder="不限" value={form.minDividendYield ?? ""} onChange={(e) => update("minDividendYield", e.target.value ? Number(e.target.value) : null)} className="h-11 rounded-md border border-line bg-surface px-3 text-base outline-none focus:shadow-focus sm:text-sm" />
             </label>
           </div>
 
           <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-slate">排序</span>
-              <select value={form.sortBy} onChange={(e) => update("sortBy", e.target.value as ScreenerRequestInput["sortBy"])} className="h-10 rounded-xl border border-line bg-surface px-3 text-sm outline-none focus:shadow-focus">
+              <select value={form.sortBy} onChange={(e) => update("sortBy", e.target.value as ScreenerRequestInput["sortBy"])} className="h-11 rounded-md border border-line bg-surface px-3 text-base outline-none focus:shadow-focus sm:text-sm">
                 {sortOptions.map((o) => (
                   <option key={o.key} value={o.key}>
                     {o.label}
@@ -125,7 +125,7 @@ export default function ScreenerPage() {
                 ))}
               </select>
             </label>
-            <button type="submit" disabled={isLoading} className="inline-flex h-11 items-center gap-2 rounded-xl bg-pine px-6 text-sm font-semibold text-white transition hover:bg-pine-dark disabled:opacity-60">
+            <button type="submit" disabled={isLoading} className="inline-flex h-11 items-center gap-2 rounded-md bg-pine px-6 text-sm font-semibold text-white transition hover:bg-pine-dark disabled:opacity-60">
               <Filter size={16} />
               {isLoading ? "篩選中..." : "開始選股"}
             </button>
@@ -134,11 +134,11 @@ export default function ScreenerPage() {
       </form>
 
       {error ? (
-        <div className="rounded-xl border border-coral/30 bg-coral-soft p-4 text-sm font-medium text-coral">{error}</div>
+        <div className="rounded-lg border border-coral/30 bg-coral-soft p-4 text-sm font-medium text-coral">{error}</div>
       ) : null}
 
       {isLoading ? (
-        <div className="grid min-h-[200px] place-items-center rounded-2xl border border-dashed border-line bg-surface p-8 text-center text-slate">
+        <div className="grid min-h-[200px] place-items-center rounded-lg border border-dashed border-line bg-surface p-8 text-center text-slate">
           正在分析股票池(首次查詢需多花一點時間)...
         </div>
       ) : null}
@@ -199,7 +199,7 @@ export default function ScreenerPage() {
       ) : null}
 
       {!result && !isLoading && !error ? (
-        <div className="grid min-h-[200px] place-items-center rounded-2xl border border-dashed border-line bg-surface p-8 text-center text-slate">
+        <div className="grid min-h-[200px] place-items-center rounded-lg border border-dashed border-line bg-surface p-8 text-center text-slate">
           設定條件後開始選股,結果可直接點入個股深度分析。
         </div>
       ) : null}

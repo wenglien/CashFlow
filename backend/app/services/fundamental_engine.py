@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import math
+import statistics
 from datetime import datetime, timezone
 
 from app.config import Settings
@@ -22,6 +24,7 @@ from app.schemas import (
     ScoreItem,
     ValuationMetrics,
 )
+from app.services import market_data
 from app.services.data_providers import finmind_client, yfinance_client
 
 
@@ -176,6 +179,110 @@ def _build_score(
     return overall, breakdown
 
 
+def _score_return(value: float | None, label: str) -> tuple[int, str]:
+    if value is None:
+        return 50, f"缺少{label}資料,以中性計分。"
+    if value >= 20:
+        score = 88
+    elif value >= 10:
+        score = 76
+    elif value >= 0:
+        score = 62
+    elif value >= -10:
+        score = 42
+    else:
+        score = 28
+    return score, f"{label} {value:.1f}%"
+
+
+def _score_volatility(value: float | None) -> tuple[int, str]:
+    if value is None:
+        return 55, "缺少波動資料,以中性計分。"
+    if value <= 12:
+        score = 78
+    elif value <= 20:
+        score = 66
+    elif value <= 30:
+        score = 52
+    else:
+        score = 38
+    return score, f"年化波動約 {value:.1f}%"
+
+
+def _build_etf_score(growth: GrowthMetrics, valuation: ValuationMetrics) -> tuple[int, list[ScoreItem]]:
+    specs = [
+        ("配息能力", 0.25, _score_dividend(valuation)),
+        ("長期表現", 0.35, _score_return(growth.revenueYoyPercent, "近一年報酬")),
+        ("近期動能", 0.20, _score_return(growth.revenueMomPercent, "近一月報酬")),
+        ("波動風險", 0.20, _score_volatility(valuation.volatilityPercent)),
+    ]
+    breakdown = [
+        ScoreItem(label=label, score=result[0], weight=weight, detail=result[1])
+        for label, weight, result in specs
+    ]
+    overall = round(sum(item.score * item.weight for item in breakdown))
+    return overall, breakdown
+
+
+def _latest_return(history: list[dict], days: int) -> float | None:
+    if len(history) <= days:
+        return None
+    current = history[-1].get("close")
+    previous = history[-days - 1].get("close")
+    return _change_pct(current, previous)
+
+
+def _annualized_volatility(history: list[dict]) -> float | None:
+    closes = [point.get("close") for point in history[-253:] if point.get("close")]
+    if len(closes) < 30:
+        return None
+    returns = [(closes[index] - closes[index - 1]) / closes[index - 1] for index in range(1, len(closes))]
+    if len(returns) < 2:
+        return None
+    return round(statistics.stdev(returns) * math.sqrt(252) * 100, 2)
+
+
+def _split_adjusted_history(history: list[dict]) -> list[dict]:
+    adjusted: list[dict] = []
+    factor = 1.0
+    for index, point in enumerate(reversed(history)):
+        close = point.get("close")
+        if close is None:
+            continue
+        adjusted.append({"date": point.get("date"), "close": round(close * factor, 4)})
+        next_older = history[len(history) - index - 2] if len(history) - index - 2 >= 0 else None
+        if next_older and next_older.get("close"):
+            older_close = next_older["close"]
+            change = (close - older_close) / older_close
+            if abs(change) > 0.3:
+                factor *= close / older_close
+    adjusted.reverse()
+    return adjusted
+
+
+def _is_etf(info: dict[str, str]) -> bool:
+    return (info.get("industry") or "").strip().upper() == "ETF"
+
+
+def _etf_summary(name: str, score: int, breakdown: list[ScoreItem]) -> str:
+    if score >= 75:
+        tone = "ETF 表現穩健"
+    elif score >= 55:
+        tone = "ETF 表現中性偏穩"
+    elif score >= 40:
+        tone = "ETF 表現平淡,需搭配風險控管"
+    else:
+        tone = "ETF 表現偏弱,需謹慎檢視配置"
+    strongest = max(breakdown, key=lambda item: item.score)
+    weakest = min(breakdown, key=lambda item: item.score)
+    return (
+        f"{name} 綜合 ETF 評分 {score} 分,{tone}。"
+        f"相對強項為「{strongest.label}」({strongest.detail});"
+        f"較弱的一環是「{weakest.label}」({weakest.detail})。"
+        f"本分析使用價格、配息與波動資料,僅供教育參考,非投資建議。"
+    )
+
+
 def _summary(name: str, score: int, breakdown: list[ScoreItem]) -> str:
     if score >= 75:
         tone = "基本面整體穩健"
@@ -198,6 +305,9 @@ def _summary(name: str, score: int, breakdown: list[ScoreItem]) -> str:
 async def _build_taiwan(symbol: str, settings: Settings) -> FundamentalAnalysis:
     token = settings.finmind_token
     info = await finmind_client.get_stock_info(symbol, token)
+    if _is_etf(info):
+        return await _build_taiwan_etf(symbol, settings, info)
+
     valuation_raw = await finmind_client.get_valuation(symbol, token)
     statements_raw = await finmind_client.get_financial_statements(symbol, token)
     revenue_raw = await finmind_client.get_month_revenue(symbol, token)
@@ -262,6 +372,74 @@ async def _build_taiwan(symbol: str, settings: Settings) -> FundamentalAnalysis:
     )
 
 
+async def _build_taiwan_etf(symbol: str, settings: Settings, info: dict[str, str]) -> FundamentalAnalysis:
+    token = settings.finmind_token
+    stock_id = finmind_client.to_stock_id(symbol)
+    market_symbol = f"{stock_id}.TW"
+    history = await finmind_client.get_price_history(stock_id, token, years=2)
+    adjusted_history = _split_adjusted_history(history)
+    snapshot = await market_data.get_market_snapshot([market_symbol], settings)
+    quote = snapshot.quotes[0] if snapshot.quotes else None
+
+    latest_close = history[-1]["close"] if history else (quote.price if quote else None)
+    one_year_return = _latest_return(adjusted_history, 252)
+    one_month_return = _latest_return(adjusted_history, 20)
+    twenty_day_return = _latest_return(adjusted_history, 20)
+    volatility = _annualized_volatility(adjusted_history)
+    dividend_yield = quote.dividendYield * 100 if quote and quote.dividendYield is not None else None
+
+    trend_source = history[-60:]
+    trend = [
+        RevenuePoint(
+            month=point["date"],
+            revenue=point["close"],
+            yoyPercent=_change_pct(point["close"], trend_source[index - 1]["close"]) if index > 0 else None,
+        )
+        for index, point in enumerate(trend_source)
+    ]
+
+    valuation = ValuationMetrics(
+        per=None,
+        pbr=None,
+        dividendYield=dividend_yield,
+        marketCap=None,
+        roe=None,
+        latestPrice=latest_close,
+        priceChangePercent=quote.changePercent if quote else twenty_day_return,
+        volatilityPercent=volatility,
+        asOf=history[-1]["date"] if history else None,
+    )
+    growth = GrowthMetrics(
+        revenueYoyPercent=one_year_return,
+        revenueMomPercent=one_month_return,
+        epsYoyPercent=twenty_day_return,
+        ttmEps=latest_close,
+    )
+
+    data_available = bool(history or quote)
+    score, breakdown = _build_etf_score(growth, valuation)
+    notes = [] if data_available else ["目前無法取得 ETF 價格或配息資料,請稍後再試。"]
+
+    return FundamentalAnalysis(
+        symbol=stock_id,
+        name=info["name"],
+        market="TW",
+        currency="TWD",
+        industry="ETF",
+        valuation=valuation,
+        growth=growth,
+        statements=[],
+        revenueTrend=trend,
+        fundamentalScore=score,
+        scoreBreakdown=breakdown,
+        summary=_etf_summary(info["name"], score, breakdown),
+        source="finmind+market",
+        updatedAt=_now(),
+        dataAvailable=data_available,
+        notes=notes,
+    )
+
+
 async def _build_us(symbol: str) -> FundamentalAnalysis:
     upper = symbol.strip().upper()
     profile = await yfinance_client.get_profile_and_valuation(upper)
@@ -280,6 +458,9 @@ async def _build_us(symbol: str) -> FundamentalAnalysis:
         dividendYield=profile.get("dividendYield"),
         marketCap=profile.get("marketCap"),
         roe=profile.get("roe"),
+        latestPrice=None,
+        priceChangePercent=None,
+        volatilityPercent=None,
         asOf=None,
     )
     growth = GrowthMetrics(

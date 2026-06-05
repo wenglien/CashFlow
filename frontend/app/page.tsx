@@ -7,15 +7,30 @@ import {
   Activity,
   ArrowRight,
   Brain,
+  CheckCircle2,
   Filter,
+  Gauge,
   LineChart,
   PieChart,
   Search,
+  ShieldAlert,
   TrendingUp
 } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
 
 const quickPicks = ["2330", "0050", "2454", "AAPL", "NVDA"];
+
+const marketPulse = [
+  { label: "市場狀態", value: "偏多觀察", detail: "科技股動能較強，收益型標的適合作為現金流底倉。", tone: "text-pine", icon: TrendingUp },
+  { label: "風險提醒", value: "估值分化", detail: "高成長標的需要搭配回撤與成交量確認。", tone: "text-coral", icon: ShieldAlert },
+  { label: "下一步", value: "先選市場", detail: "選 5 到 8 檔標的後，再進入市場頁或模擬頁比較。", tone: "text-gold", icon: Gauge }
+];
+
+const nextActions = [
+  { label: "看市場總覽", href: "/simulation", desc: "選擇一組台美市場清單" },
+  { label: "分析台積電", href: "/stock?symbol=2330", desc: "查看個股基本面與籌碼" },
+  { label: "做現金流模擬", href: "/simulation", desc: "把候選標的轉成配置建議" }
+];
 
 const features = [
   {
@@ -59,36 +74,42 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:py-16">
-      {/* Hero */}
-      <section className="grid animate-fade-up gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-        <div>
-          <Badge tone="pine">
-            <TrendingUp size={13} />
-            基本面 · 籌碼面 · AI 綜合分析
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-10">
+      <section className="grid animate-fade-up gap-5 lg:grid-cols-[1fr_420px] lg:items-start">
+        <div className="rounded-lg border border-ink/10 bg-ink p-5 text-white shadow-panel sm:p-6">
+          <Badge tone="mint">
+            <Activity size={13} />
+            今日投資儀表板
           </Badge>
-          <h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl lg:text-6xl">
-            把每一檔股票
-            <br />
-            看得<span className="text-pine">更深</span>
-          </h1>
-          <p className="mt-5 max-w-xl text-lg leading-8 text-slate">
-            輸入台股或美股代號,立即取得整合財報、法人籌碼與 AI 分析的深度報告。資料來自 FinMind、yfinance 真實來源。
-          </p>
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                先看市場狀態，
+                <br />
+                再決定要分析哪一檔
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
+                CashFlow 把市場報價、個股基本面、籌碼面與現金流模擬放在同一個決策流程。你可以先問 AI，也可以直接選市場或輸入代號。
+              </p>
+            </div>
+            <div className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold text-white/70">
+              教育研究用途 · 非投資建議
+            </div>
+          </div>
 
           <form onSubmit={go} className="mt-8 flex max-w-md gap-2">
-            <div className="flex flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-4 shadow-card focus-within:shadow-focus">
-              <Search size={18} className="text-slate" />
+            <div className="flex flex-1 items-center gap-2 rounded-md border border-white/15 bg-white px-4 shadow-card focus-within:shadow-focus">
+              <Search size={18} className="text-ink/45" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="輸入代號,如 2330 或 AAPL"
-                className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-slate/60"
+                className="h-12 w-full bg-transparent text-base text-ink outline-none placeholder:text-ink/35"
               />
             </div>
             <button
               type="submit"
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-pine px-5 text-sm font-semibold text-white shadow-card transition hover:bg-pine-dark"
+              className="inline-flex h-12 items-center gap-2 rounded-md bg-mint px-5 text-sm font-semibold text-ink shadow-card transition hover:bg-white"
             >
               分析
               <ArrowRight size={16} />
@@ -96,49 +117,62 @@ export default function Home() {
           </form>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate">熱門:</span>
+            <span className="text-xs text-white/55">熱門:</span>
             {quickPicks.map((symbol) => (
               <Link
                 key={symbol}
                 href={`/stock?symbol=${symbol}`}
-                className="rounded-lg border border-line bg-surface px-3 py-1 text-xs font-semibold text-slate transition hover:border-pine/40 hover:text-pine"
+                className="inline-flex min-h-9 items-center rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:bg-white hover:text-ink"
               >
                 {symbol}
               </Link>
             ))}
           </div>
-        </div>
 
-        {/* Hero 視覺卡 */}
-        <Card className="animate-fade-up p-6 shadow-panel">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-slate">台積電</p>
-              <p className="text-xs text-slate/70">2330 · 台股</p>
-            </div>
-            <Badge tone="pine">綜合 63 · 良好</Badge>
-          </div>
-          <div className="mt-5 grid grid-cols-3 gap-3">
-            {[
-              { k: "基本面", v: "69", c: "text-pine" },
-              { k: "籌碼面", v: "54", c: "text-gold" },
-              { k: "AI 多空", v: "2:2", c: "text-ink" }
-            ].map((m) => (
-              <div key={m.k} className="rounded-xl bg-mist/70 p-3 text-center">
-                <p className="text-xs text-slate">{m.k}</p>
-                <p className={`mt-1 text-2xl font-bold tabular ${m.c}`}>{m.v}</p>
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            {marketPulse.map((item) => (
+              <div key={item.label} className="rounded-lg bg-white/8 p-4 ring-1 ring-white/10">
+                <div className="flex items-center gap-2 text-xs font-semibold text-white/55">
+                  <item.icon size={15} className={item.tone} />
+                  {item.label}
+                </div>
+                <p className={`mt-2 text-xl font-semibold ${item.tone}`}>{item.value}</p>
+                <p className="mt-2 text-xs leading-5 text-white/58">{item.detail}</p>
               </div>
             ))}
           </div>
-          <div className="mt-4 space-y-2">
+        </div>
+
+        <Card className="animate-fade-up p-5 shadow-panel">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate">AI 建議工作流</p>
+              <p className="text-xs text-slate/70">從市場到配置</p>
+            </div>
+            <Badge tone="pine">可立即開始</Badge>
+          </div>
+          <div className="mt-5 grid gap-3">
+            {nextActions.map((action, index) => (
+              <Link key={action.label} href={action.href} className="group rounded-lg border border-line bg-mist/70 p-4 transition hover:border-pine/40 hover:bg-white">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-pine text-sm font-semibold text-white">{index + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-ink">{action.label}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate">{action.desc}</p>
+                  </div>
+                  <ArrowRight size={16} className="mt-1 text-pine opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" />
+                </div>
+              </Link>
+            ))}
+          </div>
+          <div className="mt-5 space-y-2">
             {[
-              { label: "獲利能力", w: 90 },
-              { label: "成長性", w: 76 },
-              { label: "估值", w: 45 },
-              { label: "法人動向", w: 60 }
+              { label: "市場資料", w: 88 },
+              { label: "AI 頁面感知", w: 82 },
+              { label: "模擬建議", w: 74 }
             ].map((row) => (
               <div key={row.label} className="flex items-center gap-3">
-                <span className="w-16 shrink-0 text-xs text-slate">{row.label}</span>
+                <span className="w-24 shrink-0 text-xs text-slate">{row.label}</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
                   <div className="h-full rounded-full bg-pine/80" style={{ width: `${row.w}%` }} />
                 </div>
@@ -146,15 +180,18 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <Link href="/stock?symbol=2330" className="mt-5 flex items-center justify-center gap-1 text-sm font-semibold text-pine hover:text-pine-dark">
-            查看完整分析
+          <Link href="/simulation" className="mt-5 flex items-center justify-center gap-1 rounded-md bg-pine px-4 py-3 text-sm font-semibold text-white hover:bg-ink">
+            開始市場選擇
             <ArrowRight size={15} />
           </Link>
         </Card>
       </section>
 
-      {/* Feature cards */}
-      <section className="mt-16">
+      <section className="mt-8">
+        <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink/65">
+          <CheckCircle2 size={16} className="text-pine" />
+          常用工具
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((f) => (
             <Link key={f.title} href={f.href} className="group">
@@ -189,7 +226,7 @@ export default function Home() {
             想規劃整體資產配置?用 <span className="font-semibold text-ink">現金流模擬</span> 壓力測試你的投資組合。
           </p>
         </div>
-        <Link href="/simulation" className="inline-flex items-center gap-2 rounded-xl border border-line px-4 py-2 text-sm font-semibold text-ink transition hover:bg-mist">
+        <Link href="/simulation" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-line px-4 py-2 text-sm font-semibold text-ink transition hover:bg-mist">
           開始模擬
           <ArrowRight size={15} />
         </Link>

@@ -16,4 +16,4 @@ async def market_chat(
     settings: Settings = Depends(get_settings),
 ) -> MarketChatResponse:
     snapshot = await get_market_snapshot(payload.symbols, settings)
-    return await answer_market_question(payload.question, snapshot, settings)
+    return await answer_market_question(payload.question, snapshot, settings, payload.pageContext)

@@ -1,6 +1,6 @@
 "use client";
 
-import { Gauge, Play, RotateCcw, WalletCards } from "lucide-react";
+import { Bot, Gauge, Play, RotateCcw, WalletCards } from "lucide-react";
 import type { FormEvent } from "react";
 import type { PortfolioInput, RiskLevel } from "@/lib/types";
 
@@ -55,8 +55,16 @@ export function InputForm({ value, onChange, onSubmit, isLoading = false }: Inpu
   return (
     <form onSubmit={submit} className="grid gap-5 rounded-lg border border-ink/10 bg-white p-5 shadow-panel">
       <div>
-        <p className="text-sm font-semibold text-pine">模擬假設</p>
-        <h2 className="mt-1 text-xl font-semibold">投資現金流設定</h2>
+        <p className="text-sm font-semibold text-pine">Step 2 · 模擬假設</p>
+        <h2 className="mt-1 text-xl font-semibold">系統模擬與 AI 建議設定</h2>
+        <p className="mt-2 text-sm leading-6 text-ink/55">
+          系統會先做 Monte Carlo 壓力測試，再由 AI 解讀成功率、回撤、股息覆蓋與配置建議。
+        </p>
+      </div>
+
+      <div className="flex items-start gap-2 rounded-lg bg-mint/25 p-3 text-sm leading-6 text-ink/65">
+        <Bot size={16} className="mt-1 shrink-0 text-pine" />
+        <span>輸入假設後，結果會整合量化模型、候選標的清單與 AI 風險提醒。</span>
       </div>
 
       <div className="grid gap-2">
@@ -69,7 +77,7 @@ export function InputForm({ value, onChange, onSubmit, isLoading = false }: Inpu
             <button
               key={preset.label}
               type="button"
-              className="rounded-md bg-mist px-2 py-2 text-xs font-semibold text-ink/70 hover:bg-pine hover:text-white"
+              className="min-h-11 rounded-md bg-mist px-2 py-2 text-xs font-semibold leading-tight text-ink/70 hover:bg-pine hover:text-white"
               onClick={() => onChange(preset.value)}
             >
               {preset.label}
@@ -84,7 +92,7 @@ export function InputForm({ value, onChange, onSubmit, isLoading = false }: Inpu
           <span className="text-xs text-ink/45">NT${money.format(value.totalCapital)}</span>
         </span>
         <input
-          className="rounded-md border border-ink/15 px-3 py-2 outline-none focus:border-pine"
+          className="h-11 rounded-md border border-ink/15 px-3 py-2 text-base outline-none focus:border-pine sm:text-sm"
           type="number"
           min={10000}
           step={10000}
@@ -98,7 +106,7 @@ export function InputForm({ value, onChange, onSubmit, isLoading = false }: Inpu
           <span className="text-xs text-ink/45">NT${money.format(value.targetMonthlyIncome)}</span>
         </span>
         <input
-          className="rounded-md border border-ink/15 px-3 py-2 outline-none focus:border-pine"
+          className="h-11 rounded-md border border-ink/15 px-3 py-2 text-base outline-none focus:border-pine sm:text-sm"
           type="number"
           min={0}
           step={500}
@@ -127,7 +135,7 @@ export function InputForm({ value, onChange, onSubmit, isLoading = false }: Inpu
       <label className="grid gap-2 text-sm font-medium">
         風險等級
         <select
-          className="rounded-md border border-ink/15 px-3 py-2 capitalize outline-none focus:border-pine"
+          className="h-11 rounded-md border border-ink/15 px-3 py-2 text-base capitalize outline-none focus:border-pine sm:text-sm"
           value={value.riskLevel}
           onChange={(event) => update("riskLevel", event.target.value as RiskLevel)}
         >
@@ -157,15 +165,15 @@ export function InputForm({ value, onChange, onSubmit, isLoading = false }: Inpu
       </div>
 
       <button
-        className="mt-2 flex items-center justify-center gap-2 rounded-md bg-pine px-4 py-3 font-semibold text-white hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
+        className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-md bg-pine px-4 py-3 font-semibold text-white hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
         disabled={isLoading}
       >
         <Play size={18} />
-        {isLoading ? "模擬中..." : "執行模擬"}
+        {isLoading ? "正在產生系統與 AI 建議..." : "產生系統模擬 + AI 建議"}
       </button>
       <button
         type="button"
-        className="flex items-center justify-center gap-2 rounded-md border border-ink/10 px-4 py-2 text-sm font-semibold text-ink/65 hover:bg-mist"
+        className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-ink/10 px-4 py-2 text-sm font-semibold text-ink/65 hover:bg-mist"
         onClick={() => onChange({ totalCapital: 1000000, targetMonthlyIncome: 4000, investmentYears: 20, riskLevel: "balanced", currency: "TWD" })}
       >
         <RotateCcw size={15} />

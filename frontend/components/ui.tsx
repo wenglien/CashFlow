@@ -6,7 +6,7 @@ type DivProps = { className?: string; children: ReactNode };
 /** 標準卡片表面 */
 export function Card({ className = "", children }: DivProps) {
   return (
-    <div className={`rounded-2xl border border-line bg-surface shadow-card ${className}`}>{children}</div>
+    <div className={`rounded-lg border border-line bg-surface shadow-card ${className}`}>{children}</div>
   );
 }
 
@@ -45,7 +45,7 @@ const buttonStyles: Record<ButtonVariant, string> = {
 };
 
 const baseButton =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:shadow-focus disabled:opacity-60 disabled:pointer-events-none";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:shadow-focus disabled:opacity-60 disabled:pointer-events-none";
 
 export function Button({
   children,
@@ -94,7 +94,7 @@ export function Stat({
 }) {
   const color = tone === "pine" ? "text-pine" : tone === "coral" ? "text-coral" : "text-ink";
   return (
-    <div className="rounded-xl border border-line bg-surface p-4">
+    <div className="rounded-lg border border-line bg-surface p-4">
       <p className="text-xs font-medium text-slate">{label}</p>
       <p className={`mt-1 text-xl font-semibold tabular ${color}`}>{value}</p>
       {hint ? <p className="mt-0.5 text-xs text-slate/80">{hint}</p> : null}

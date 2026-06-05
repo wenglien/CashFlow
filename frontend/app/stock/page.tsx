@@ -66,21 +66,21 @@ function StockPageContent() {
   return (
     <main className="mx-auto grid max-w-5xl gap-6 px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/market" className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-mist">
+        <Link href="/market" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-mist">
           <ArrowLeft size={16} />
           市場總覽
         </Link>
         <form onSubmit={submitSearch} className="flex flex-1 items-center justify-end gap-2 sm:flex-none">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3 shadow-card focus-within:shadow-focus sm:w-56 sm:flex-none">
+          <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-surface px-3 shadow-card focus-within:shadow-focus sm:w-56 sm:flex-none">
             <Search size={16} className="shrink-0 text-slate" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="代號,如 2330 / AAPL"
-              className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate/60"
+              className="h-10 w-full min-w-0 bg-transparent text-base outline-none placeholder:text-slate/60 sm:text-sm"
             />
           </div>
-          <button type="submit" className="inline-flex h-10 shrink-0 items-center rounded-xl bg-pine px-4 text-sm font-semibold text-white transition hover:bg-pine-dark">
+          <button type="submit" className="inline-flex h-11 shrink-0 items-center rounded-md bg-pine px-4 text-sm font-semibold text-white transition hover:bg-pine-dark">
             分析
           </button>
           <button
@@ -88,7 +88,7 @@ function StockPageContent() {
             onClick={load}
             disabled={isLoading || !symbol}
             aria-label="重新整理"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-slate transition hover:bg-mist disabled:opacity-50"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-slate transition hover:bg-mist disabled:opacity-50"
           >
             <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
           </button>
@@ -96,7 +96,7 @@ function StockPageContent() {
       </div>
 
       {data ? (
-        <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-line bg-surface px-5 py-4 shadow-card">
+        <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-line bg-surface px-5 py-4 shadow-card">
           <h1 className="text-2xl font-bold tracking-tight text-ink">{data.name}</h1>
           <span className="rounded-md bg-mist px-2 py-0.5 text-xs font-semibold text-slate tabular">{data.symbol}</span>
           <span className="rounded-md bg-pine-soft px-2 py-0.5 text-xs font-semibold text-pine">
@@ -115,7 +115,7 @@ function StockPageContent() {
                 type="button"
                 disabled={disabled}
                 onClick={() => setTab(t.key)}
-                className={`-mb-px rounded-t-lg border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                className={`-mb-px min-h-11 rounded-t-md border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
                   tab === t.key
                     ? "border-pine text-pine"
                     : disabled
@@ -132,17 +132,17 @@ function StockPageContent() {
       ) : null}
 
       {error ? (
-        <div className="rounded-xl border border-coral/30 bg-coral-soft p-4 text-sm font-medium text-coral">{error}</div>
+        <div className="rounded-lg border border-coral/30 bg-coral-soft p-4 text-sm font-medium text-coral">{error}</div>
       ) : null}
 
       {!symbol ? (
-        <div className="grid min-h-[320px] place-items-center rounded-2xl border border-dashed border-line bg-surface p-8 text-center text-slate">
+        <div className="grid min-h-[320px] place-items-center rounded-lg border border-dashed border-line bg-surface p-8 text-center text-slate">
           輸入股票代號開始深度分析(台股如 2330、美股如 AAPL)。
         </div>
       ) : null}
 
       {isLoading && !data ? (
-        <div className="grid min-h-[420px] place-items-center rounded-2xl border border-dashed border-line bg-surface p-8 text-center text-slate">
+        <div className="grid min-h-[420px] place-items-center rounded-lg border border-dashed border-line bg-surface p-8 text-center text-slate">
           <div className="flex items-center gap-3">
             <RefreshCw size={18} className="animate-spin text-pine" />
             正在分析 {symbol}(基本面 + 籌碼面 + AI 報告)...
@@ -158,7 +158,7 @@ function StockPageContent() {
             data.chip ? (
               <ChipDashboard data={data.chip} />
             ) : (
-              <div className="grid min-h-[260px] place-items-center rounded-xl border border-dashed border-ink/20 bg-white p-8 text-center text-ink/55">
+              <div className="grid min-h-[260px] place-items-center rounded-lg border border-dashed border-ink/20 bg-white p-8 text-center text-ink/55">
                 美股無對等的免費籌碼資料,籌碼面分析僅支援台股。
               </div>
             )

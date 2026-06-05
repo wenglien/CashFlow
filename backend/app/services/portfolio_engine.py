@@ -30,7 +30,24 @@ def generate_portfolio(risk_level: RiskLevel) -> list[AssetAllocation]:
     return PORTFOLIO_TEMPLATES[risk_level]
 
 
-def generate_candidates(risk_level: RiskLevel) -> list[InvestmentCandidate]:
+def _generic_candidate(symbol: str) -> InvestmentCandidate:
+    upper = symbol.upper()
+    is_taiwan = upper.endswith(".TW")
+    is_etf = any(token in upper for token in ["00", "ETF", "SPY", "QQQ", "VOO", "VTI", "SCHD", "VYM", "TLT", "BND", "AGG"])
+    return InvestmentCandidate(
+        symbol=upper,
+        name=f"{upper} 自選標的",
+        category="自選觀察",
+        allocationPercent=5,
+        expectedAnnualReturn=0.065 if is_taiwan else 0.075,
+        dividendYield=0.025 if is_etf else 0.01,
+        volatility=0.16 if is_etf else 0.24,
+        riskLabel="中" if is_etf else "高",
+        rationale="此標的來自你在市場清單中的選擇，系統先以自選觀察部位納入 AI 綜合建議；實際配置仍需搭配基本面、波動與現金流壓力檢查。",
+    )
+
+
+def generate_candidates(risk_level: RiskLevel, market_symbols: list[str] | None = None) -> list[InvestmentCandidate]:
     candidate_templates: dict[RiskLevel, list[InvestmentCandidate]] = {
         "conservative": [
             InvestmentCandidate(
@@ -237,4 +254,22 @@ def generate_candidates(risk_level: RiskLevel) -> list[InvestmentCandidate]:
             ),
         ],
     }
-    return candidate_templates[risk_level]
+    base_candidates = candidate_templates[risk_level]
+    if not market_symbols:
+        return base_candidates
+
+    all_candidates = {
+        candidate.symbol.upper(): candidate
+        for candidates in candidate_templates.values()
+        for candidate in candidates
+    }
+    selected_symbols = []
+    for symbol in market_symbols:
+        upper = symbol.strip().upper()
+        if upper and upper not in selected_symbols:
+            selected_symbols.append(upper)
+
+    selected_candidates = [all_candidates.get(symbol) or _generic_candidate(symbol) for symbol in selected_symbols]
+    selected_set = {candidate.symbol.upper() for candidate in selected_candidates}
+    remaining = [candidate for candidate in base_candidates if candidate.symbol.upper() not in selected_set]
+    return selected_candidates + remaining

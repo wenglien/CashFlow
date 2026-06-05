@@ -2,7 +2,7 @@
 
 CashFlow is a full-stack investment cash flow simulator and market analysis dashboard built for beginner investors who want a clearer way to understand portfolio income, sustainability, risk, and market conditions.
 
-The app combines Monte Carlo simulation, portfolio allocation templates, 3D data visualization, real-time-style market snapshots, and AI-assisted market Q&A.
+The app combines Monte Carlo simulation, portfolio allocation templates, structured portfolio guidance, 3D data visualization, real-time-style market snapshots, and context-aware AI-assisted market Q&A.
 
 > This project is for education and product demonstration only. It is not financial advice or a trading recommendation.
 
@@ -11,14 +11,25 @@ The app combines Monte Carlo simulation, portfolio allocation templates, 3D data
 - Portfolio cash flow simulation in NTD
 - Monte Carlo sustainability testing with 3,000 default simulation paths
 - Risk-level portfolio templates: conservative, balanced, aggressive
+- Step-by-step simulation workflow from market selection to AI portfolio guidance
+- Portfolio blueprint output with core, satellite, and defensive allocation roles
 - Investment candidate recommendations with expected return, dividend yield, volatility, and rationale
 - Taiwan-focused ETF and technology stock watchlists
 - US technology stock support, including AAPL, MSFT, NVDA, TSLA, GOOGL, AMZN, META, and AVGO
 - Market analysis page with price, daily change, volume pressure, range position, 30-day trend, and signal filters
 - Three.js 3D visualizations for market maps, portfolio allocation, and cash flow views
-- AI chat for selected market symbols using OpenAI, Groq, or local fallback analysis
+- Context-aware AI chat that reads the current page state, simulation inputs, result metrics, allocation blueprint, and selected market symbols
+- AI-assisted simulation actions, including preset switching and simulation execution from natural language
 - FastAPI backend with development auth fallback
 - Firebase-ready authentication and Firestore integration points
+
+## Live Deployment
+
+- Frontend: [https://cashflow-39548.web.app](https://cashflow-39548.web.app)
+- Simulation page: [https://cashflow-39548.web.app/simulation](https://cashflow-39548.web.app/simulation)
+- Backend: Cloud Run service `cashflow-api`
+
+Firebase Hosting serves the exported Next.js frontend and rewrites `/api/**` to the Cloud Run backend.
 
 ## Tech Stack
 
@@ -94,8 +105,25 @@ Current metrics include:
 - Expected dividend yield
 - Income coverage
 - Risk score
+- AI insight signal
+- Portfolio blueprint with allocation amount, role, guidance, and related candidate symbols
 
 The current model intentionally stays transparent for beginner investors. It does not yet include tax modeling, asset correlation, order-level trading, or personalized suitability analysis.
+
+## AI Page Context
+
+The AI chat sends structured page context to the backend instead of relying only on free-form visible text.
+
+Captured context includes:
+
+- Current route, page title, viewport, and capture timestamp
+- Visible headings and section summaries
+- Form field labels and values
+- Page metrics and result cards
+- React page state for simulation inputs, selected symbols, flow status, and simulation results
+- Portfolio diagnostics, AI insight, allocation blueprint, assets, and top candidates when a simulation has been run
+
+The backend prioritizes structured React state, then form fields, then visible text when constructing prompts for OpenAI or Groq. If external AI providers are unavailable, the local fallback still uses the simulation state to mention key values such as capital, target income, risk setting, and withdrawal rate.
 
 ## Market Watchlists
 

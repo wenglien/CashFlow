@@ -16,3 +16,5 @@ def test_simulation_returns_expected_metrics() -> None:
     assert result.projectedFinalValue >= 0
     assert result.worstCaseValue >= 0
     assert len(result.growth) == 11
+    assert len(result.diagnostics.portfolioBlueprint) == len(result.assets)
+    assert result.diagnostics.portfolioBlueprint[0].amount > 0

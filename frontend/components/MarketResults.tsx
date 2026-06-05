@@ -1,10 +1,10 @@
 "use client";
 
-import { BarChart3, Clipboard, LineChart, TrendingDown, TrendingUp } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowRight, ChevronDown, Clipboard, Heart, LineChart, Search, Target, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { MarketQuote, MarketSnapshot } from "@/lib/types";
-import { MarketScene3D } from "./MarketScene3D";
 
 const twdFormatter = new Intl.NumberFormat("zh-TW", {
   maximumFractionDigits: 2
@@ -17,6 +17,15 @@ const compact = new Intl.NumberFormat("en", {
 
 function formatInstrumentMoney(_quote: Pick<MarketQuote, "symbol" | "tradeCurrency">, value: number) {
   return `NT$${twdFormatter.format(value)}`;
+}
+
+function formatPlainPrice(value: number, digits = 4) {
+  return value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function formatSigned(value: number, digits = 4) {
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(digits)}`;
 }
 
 function formatUpdatedAt(value: string) {
@@ -207,6 +216,257 @@ function TrendSparkline({ quote }: { quote: MarketQuote }) {
   );
 }
 
+type QuoteTab = "chart" | "book" | "ticks" | "dividend";
+
+function buildChartRows(quote: MarketQuote) {
+  const source = quote.trend?.length ? quote.trend : [
+    { label: "09:00", price: quote.open, changePercent: ((quote.open - quote.previousClose) / quote.previousClose) * 100, dayChangePercent: 0 },
+    { label: "10:00", price: quote.high, changePercent: ((quote.high - quote.previousClose) / quote.previousClose) * 100, dayChangePercent: 0 },
+    { label: "11:00", price: quote.low, changePercent: ((quote.low - quote.previousClose) / quote.previousClose) * 100, dayChangePercent: 0 },
+    { label: "Now", price: quote.price, changePercent: quote.changePercent, dayChangePercent: 0 }
+  ];
+  const times = ["09", "10", "11", "12", "13", "14", "15", "16"];
+  return source.map((point, index) => {
+    const previous = source[index - 1]?.price ?? quote.previousClose;
+    const change = point.price - quote.previousClose;
+    const changePercent = quote.previousClose ? (change / quote.previousClose) * 100 : 0;
+    const volumeBase = Math.max(1, quote.volume / Math.max(source.length, 1));
+    const timeIndex = Math.round((index / Math.max(source.length - 1, 1)) * (times.length - 1));
+    return {
+      label: point.label === "Now" ? "16" : times[timeIndex] ?? point.label,
+      price: point.price,
+      change,
+      changePercent,
+      up: point.price >= previous,
+      volume: Math.round(volumeBase * (0.35 + Math.abs(point.dayChangePercent ?? 0) * 0.28 + (index === source.length - 1 ? 1.2 : 0)))
+    };
+  });
+}
+
+function buildOrderBook(quote: MarketQuote) {
+  const spread = Math.max(0.01, quote.price * 0.0015);
+  return Array.from({ length: 5 }, (_, index) => {
+    const level = index + 1;
+    return {
+      level,
+      bid: quote.price - spread * level,
+      ask: quote.price + spread * level,
+      bidSize: Math.round((quote.volume / 1000) * (0.14 + index * 0.035)) || level * 8,
+      askSize: Math.round((quote.volume / 1000) * (0.12 + index * 0.03)) || level * 7
+    };
+  });
+}
+
+function buildTicks(quote: MarketQuote) {
+  const chartRows = buildChartRows(quote).slice(-8).reverse();
+  return chartRows.map((row, index) => ({
+    time: index === 0 ? "16:00" : `${15 - index}: ${index % 2 === 0 ? "45" : "15"}`.replace(" ", ""),
+    price: row.price,
+    change: row.change,
+    changePercent: row.changePercent,
+    volume: Math.max(1, Math.round(row.volume / 1000))
+  }));
+}
+
+function QuoteDetailPanel({ quote, updatedAt }: { quote: MarketQuote; updatedAt: string }) {
+  const [tab, setTab] = useState<QuoteTab>("chart");
+  const [range, setRange] = useState("分時");
+  const chartRows = useMemo(() => buildChartRows(quote), [quote]);
+  const orderBook = useMemo(() => buildOrderBook(quote), [quote]);
+  const ticks = useMemo(() => buildTicks(quote), [quote]);
+  const isUp = quote.change >= 0;
+  const tone = isUp ? "text-coral" : "text-pine";
+  const stroke = isUp ? "#ef3340" : "#34b27c";
+  const tabs: Array<{ key: QuoteTab; label: string }> = [
+    { key: "chart", label: "K 線" },
+    { key: "book", label: "五檔" },
+    { key: "ticks", label: "明細" },
+    { key: "dividend", label: "股利政策" }
+  ];
+  const ranges = ["分時", "日", "週", "月"];
+
+  return (
+    <section className="grid gap-4">
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="text-3xl font-light text-ink/45 sm:text-4xl">‹</span>
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight text-ink sm:text-2xl">{quote.name}</h2>
+            <span className="mt-1 inline-flex rounded-md bg-mist px-2 py-1 text-xs font-semibold text-ink/50">{quote.symbol}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-ink/45">
+          <Heart size={22} />
+          <Search size={23} />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-ink/10 bg-white p-4 shadow-panel sm:p-5">
+        <div className="grid gap-5 lg:grid-cols-[1fr_0.8fr] lg:items-start">
+          <div>
+            <div className="flex flex-wrap items-start gap-x-4 gap-y-2 sm:gap-x-7">
+              <p className={`text-[3.25rem] font-light leading-none tracking-tight sm:text-7xl ${tone}`}>{formatPlainPrice(quote.price)}</p>
+              <div className={`grid gap-1 pt-1 text-xl font-semibold sm:gap-2 sm:text-2xl ${tone}`}>
+                <span>▲ {formatSigned(Math.abs(quote.change))}</span>
+                <span>▲ {formatSigned(Math.abs(quote.changePercent), 2)}%</span>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-ink/45 sm:mt-6 sm:gap-3 sm:text-sm">
+              <span className="rounded-full border border-ink/10 px-3 py-1.5 text-ink/55 sm:px-4 sm:py-2">延遲 15 分鐘</span>
+              <span>更新時間 {updatedAt}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-base sm:gap-x-8 sm:gap-y-4 sm:text-xl">
+            <div>
+              <span className="text-ink/55">最高</span>
+              <span className="ml-3 text-coral">{formatPlainPrice(quote.high)}</span>
+            </div>
+            <div>
+              <span className="text-ink/55">昨收</span>
+              <span className="ml-3 text-ink">{formatPlainPrice(quote.previousClose)}</span>
+            </div>
+            <div>
+              <span className="text-ink/55">最低</span>
+              <span className="ml-3 text-pine">{formatPlainPrice(quote.low)}</span>
+            </div>
+            <div>
+              <span className="text-ink/55">開盤</span>
+              <span className="ml-3 text-coral">{formatPlainPrice(quote.open)}</span>
+            </div>
+            <div>
+              <span className="text-ink/55">成交量</span>
+              <span className="ml-3 text-ink">{compact.format(quote.volume)}</span>
+            </div>
+            <div>
+              <span className="text-ink/55">股息率</span>
+              <span className="ml-3 text-ink">{quote.dividendYield !== null ? `${(quote.dividendYield * 100).toFixed(2)}%` : "—"}</span>
+            </div>
+          </div>
+        </div>
+        <ChevronDown className="mx-auto mt-3 text-ink/35" />
+      </div>
+
+      <div className="border-b border-line">
+        <div className="grid grid-cols-4 text-center text-base font-semibold text-ink/60 sm:text-lg">
+          {tabs.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setTab(item.key)}
+              className={`border-b-4 px-1 py-3 transition sm:px-2 sm:py-4 ${tab === item.key ? "border-mint text-pine" : "border-transparent hover:bg-white/60"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === "chart" ? (
+        <div className="grid gap-4 rounded-lg border border-ink/10 bg-white p-3 shadow-panel sm:p-4">
+          <div className="grid grid-cols-4 items-center gap-2 text-center text-base text-ink/60 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto_auto] sm:text-lg">
+            {ranges.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setRange(item)}
+                className={`rounded-md px-2 py-3 font-semibold sm:px-3 ${range === item ? "bg-mint text-white" : "hover:bg-mist"}`}
+              >
+                {item}
+              </button>
+            ))}
+            <button type="button" className="col-span-3 inline-flex items-center justify-center gap-1 rounded-md px-3 py-3 font-semibold hover:bg-mist sm:col-span-1">
+              60 分鐘 <ChevronDown size={18} />
+            </button>
+            <span className="grid h-full place-items-center rounded-md text-2xl text-pine hover:bg-mist">↗</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-base sm:text-lg">
+            <span className="text-ink/55">16:00</span>
+            <span className={tone}>… {formatPlainPrice(quote.price)} ▲ {formatSigned(Math.abs(quote.change))}({formatSigned(Math.abs(quote.changePercent), 2)}%)</span>
+            <span>量:{Math.max(1, Math.round(quote.volume / 1_000_000))}</span>
+          </div>
+          <div className="h-[300px] w-full sm:h-[430px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartRows} margin={{ top: 20, right: 8, bottom: 0, left: 8 }}>
+                <CartesianGrid strokeDasharray="6 8" stroke="#dfe5e2" />
+                <XAxis dataKey="label" interval="preserveStartEnd" minTickGap={22} tick={{ fontSize: 12, fill: "#28342f" }} />
+                <YAxis yAxisId="price" domain={["dataMin - 8", "dataMax + 8"]} tick={{ fontSize: 12, fill: "#28342f" }} width={52} tickFormatter={(value) => Number(value).toFixed(1)} />
+                <YAxis yAxisId="volume" orientation="right" hide domain={[0, "dataMax * 4"]} />
+                <Tooltip formatter={(value: number, name: string) => [name === "成交量" ? compact.format(value) : formatPlainPrice(value), name]} />
+                <Bar yAxisId="volume" dataKey="volume" name="成交量" barSize={5} isAnimationActive={false}>
+                  {chartRows.map((entry, index) => (
+                    <Cell key={index} fill={entry.up ? "#ffd33f" : "#ffe071"} />
+                  ))}
+                </Bar>
+                <Line yAxisId="price" type="monotone" dataKey="price" name="價格" stroke={stroke} strokeWidth={2.2} dot={false} isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "book" ? (
+        <div className="grid gap-3 rounded-lg border border-ink/10 bg-white p-4 shadow-panel sm:p-5">
+          <div className="grid grid-cols-5 border-b border-line pb-2 text-sm font-semibold text-ink/45">
+            <span>檔位</span>
+            <span className="text-pine">買價</span>
+            <span>買量</span>
+            <span className="text-coral">賣價</span>
+            <span>賣量</span>
+          </div>
+          {orderBook.map((row) => (
+            <div key={row.level} className="grid grid-cols-5 items-center rounded-md bg-mist/50 px-3 py-3 text-base sm:text-lg">
+              <span>{row.level}</span>
+              <span className="text-pine">{formatPlainPrice(row.bid)}</span>
+              <span>{row.bidSize}</span>
+              <span className="text-coral">{formatPlainPrice(row.ask)}</span>
+              <span>{row.askSize}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {tab === "ticks" ? (
+        <div className="grid gap-3 rounded-lg border border-ink/10 bg-white p-4 shadow-panel sm:p-5">
+          <div className="grid grid-cols-4 border-b border-line pb-2 text-sm font-semibold text-ink/45">
+            <span>時間</span>
+            <span>成交價</span>
+            <span>漲跌</span>
+            <span>量</span>
+          </div>
+          {ticks.map((row) => (
+            <div key={row.time} className="grid grid-cols-4 rounded-md bg-mist/50 px-3 py-3 text-sm sm:text-lg">
+              <span>{row.time}</span>
+              <span className={row.change >= 0 ? "text-coral" : "text-pine"}>{formatPlainPrice(row.price)}</span>
+              <span className={row.change >= 0 ? "text-coral" : "text-pine"}>{formatSigned(row.change)} ({formatSigned(row.changePercent, 2)}%)</span>
+              <span>{row.volume}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {tab === "dividend" ? (
+        <div className="grid gap-4 rounded-lg border border-ink/10 bg-white p-4 shadow-panel sm:p-5">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg bg-mist p-4">
+              <p className="text-sm text-ink/45">現金殖利率</p>
+              <p className="mt-2 text-3xl font-semibold text-pine">{quote.dividendYield !== null ? `${(quote.dividendYield * 100).toFixed(2)}%` : "—"}</p>
+            </div>
+            <div className="rounded-lg bg-mist p-4">
+              <p className="text-sm text-ink/45">估計年度配息</p>
+              <p className="mt-2 text-3xl font-semibold">{quote.dividendYield !== null ? formatPlainPrice(quote.price * quote.dividendYield, 2) : "—"}</p>
+            </div>
+            <div className="rounded-lg bg-mist p-4">
+              <p className="text-sm text-ink/45">資料來源</p>
+              <p className="mt-2 text-3xl font-semibold">{quote.source}</p>
+            </div>
+          </div>
+          <p className="text-sm leading-6 text-ink/55">股利資訊依目前報價資料估算，實際除息日、配息金額與配息頻率仍應以交易所與發行公司公告為準。</p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
   const quotes = useMemo(() => snapshot.quotes, [snapshot]);
   const [selected, setSelected] = useState(quotes[0]?.symbol ?? "");
@@ -257,65 +517,104 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
 
   return (
     <section className="grid gap-4">
-      <div className="rounded-lg border border-ink/10 bg-ink p-5 text-white shadow-panel">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="rounded-lg border border-ink/10 bg-ink p-4 text-white shadow-panel sm:p-5" data-ai-context>
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-mint">查詢結果</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">所選市場分析</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/75">{snapshot.summary}</p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:mt-2 sm:text-3xl">所選市場分析</h1>
+            <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-relaxed text-white/75 sm:line-clamp-none">{snapshot.summary}</p>
           </div>
           <div className="rounded-md bg-white/10 px-3 py-2 text-xs font-medium text-white/75">
             共 {quotes.length} 檔，資料來源：{snapshot.source}，更新 {updatedAt}
           </div>
         </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg bg-white/10 p-3">
+            <p className="text-xs font-semibold text-white/50">市場結論</p>
+            <p className={`mt-1 text-lg font-semibold ${averageChange >= 0 ? "text-mint" : "text-coral"}`}>
+              {averageChange >= 0 ? "偏多觀察" : "保守觀察"}
+            </p>
+          </div>
+          <div className="rounded-lg bg-white/10 p-3">
+            <p className="text-xs font-semibold text-white/50">先看標的</p>
+            <p className="mt-1 text-lg font-semibold text-white">{selectedQuote?.symbol ?? strongest?.symbol ?? "—"}</p>
+          </div>
+          <div className="rounded-lg bg-white/10 p-3">
+            <p className="text-xs font-semibold text-white/50">建議動作</p>
+            <p className="mt-1 text-lg font-semibold text-mint">比較動能與股息</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="rounded-lg border border-ink/10 bg-white p-4 shadow-panel">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
+        <div className="rounded-lg border border-ink/10 bg-white p-3 shadow-panel sm:p-4">
           <p className="text-xs font-semibold text-ink/45">上漲家數</p>
-          <p className="mt-2 text-2xl font-semibold">{positiveCount}/{quotes.length}</p>
+          <p className="mt-1 text-xl font-semibold sm:mt-2 sm:text-2xl">{positiveCount}/{quotes.length}</p>
         </div>
-        <div className="rounded-lg border border-ink/10 bg-white p-4 shadow-panel">
+        <div className="rounded-lg border border-ink/10 bg-white p-3 shadow-panel sm:p-4">
           <p className="text-xs font-semibold text-ink/45">平均漲跌</p>
-          <p className={`mt-2 text-2xl font-semibold ${averageChange >= 0 ? "text-pine" : "text-coral"}`}>
+          <p className={`mt-1 text-xl font-semibold sm:mt-2 sm:text-2xl ${averageChange >= 0 ? "text-pine" : "text-coral"}`}>
             {averageChange >= 0 ? "+" : ""}
             {averageChange.toFixed(2)}%
           </p>
         </div>
-        <div className="rounded-lg border border-ink/10 bg-white p-4 shadow-panel">
+        <div className="rounded-lg border border-ink/10 bg-white p-3 shadow-panel sm:p-4">
           <p className="text-xs font-semibold text-ink/45">最強標的</p>
-          <p className="mt-2 text-2xl font-semibold text-pine">{strongest?.symbol ?? "—"}</p>
+          <p className="mt-1 truncate text-xl font-semibold text-pine sm:mt-2 sm:text-2xl">{strongest?.symbol ?? "—"}</p>
         </div>
-        <div className="rounded-lg border border-ink/10 bg-white p-4 shadow-panel">
+        <div className="rounded-lg border border-ink/10 bg-white p-3 shadow-panel sm:p-4">
           <p className="text-xs font-semibold text-ink/45">需留意</p>
-          <p className="mt-2 text-2xl font-semibold text-coral">{weakest?.symbol ?? "—"}</p>
+          <p className="mt-1 truncate text-xl font-semibold text-coral sm:mt-2 sm:text-2xl">{weakest?.symbol ?? "—"}</p>
         </div>
       </div>
 
+      <div className="grid gap-3 rounded-lg border border-ink/10 bg-white p-3 shadow-panel sm:p-4" data-ai-context>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Target size={17} className="text-pine" />
+            先聚焦一檔，再看價格與圖表
+          </div>
+          <Link
+            href={`/stock?symbol=${encodeURIComponent(selectedQuote?.symbol ?? strongest?.symbol ?? "")}`}
+            className="inline-flex min-h-10 items-center gap-1 rounded-md bg-mist px-3 py-2 text-xs font-semibold text-ink/65 hover:bg-pine hover:text-white"
+          >
+            基本面深度分析
+            <ArrowRight size={13} />
+          </Link>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {quotes.map((quote) => (
+            <button
+              key={quote.symbol}
+              type="button"
+              className={`min-h-11 shrink-0 rounded-md border px-3 py-2 text-left text-sm font-semibold ${
+                selectedQuote?.symbol === quote.symbol
+                  ? "border-pine bg-pine text-white"
+                  : "border-line bg-mist text-ink/65 hover:border-pine/40 hover:bg-white"
+              }`}
+              onClick={() => setSelected(quote.symbol)}
+            >
+              <span>{quote.symbol}</span>
+              <span className={`ml-2 ${selectedQuote?.symbol === quote.symbol ? "text-white/75" : quote.changePercent >= 0 ? "text-pine" : "text-coral"}`}>
+                {quote.changePercent >= 0 ? "+" : ""}
+                {quote.changePercent.toFixed(2)}%
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {selectedQuote ? <QuoteDetailPanel quote={selectedQuote} updatedAt={updatedAt} /> : null}
+
       <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
         <div className="grid gap-4">
-          <div className="rounded-lg border border-ink/10 bg-white p-4 shadow-panel">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <BarChart3 size={18} className="text-pine" />
-                <h2 className="text-lg font-semibold">3D 市場地圖</h2>
-              </div>
-              <div className="flex gap-2 text-xs font-semibold text-ink/50">
-                <span>價格</span>
-                <span>動能</span>
-                <span>成交量</span>
-              </div>
-            </div>
-            <MarketScene3D quotes={quotes} selectedSymbol={selectedQuote?.symbol} />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
+          <div className="sticky top-[61px] z-30 -mx-4 flex flex-wrap items-center justify-between gap-3 border-y border-line/70 bg-mist/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
+            <div className="flex max-w-full gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
               {signalTabs.map((tab) => (
                 <button
                   key={tab.value}
                   type="button"
-                  className={`rounded-md px-3 py-2 text-sm font-semibold ${
+                  className={`min-h-11 shrink-0 rounded-md px-4 py-2 text-sm font-semibold ${
                     signalFilter === tab.value ? "bg-pine text-white" : "bg-white text-ink/65 shadow-panel hover:bg-mist"
                   }`}
                   onClick={() => setSignalFilter(tab.value)}
@@ -324,11 +623,11 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <label className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-ink/65 shadow-panel">
+            <div className="flex w-full gap-2 sm:w-auto sm:flex-wrap">
+              <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-ink/65 shadow-panel sm:flex-none">
                 排序
                 <select
-                  className="bg-transparent text-sm font-semibold outline-none"
+                  className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
                   value={sortBy}
                   onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
                 >
@@ -340,7 +639,7 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
               </label>
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-ink/65 shadow-panel hover:bg-mist"
+                className="flex min-h-11 shrink-0 items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-ink/65 shadow-panel hover:bg-mist"
                 onClick={copySummary}
               >
                 <Clipboard size={15} />
@@ -349,7 +648,7 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4">
             {filteredQuotes.map((quote) => {
               const isPositive = quote.changePercent >= 0;
               const volumeScore = (quote.volume / maxVolume) * 100;
@@ -357,32 +656,38 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
               return (
                 <button
                   key={quote.symbol}
-                  className={`grid min-h-[214px] w-full gap-3 rounded-lg border p-4 text-left shadow-panel transition hover:-translate-y-0.5 hover:border-pine/50 ${
+                  className={`grid w-full gap-2 rounded-lg border p-3 text-left shadow-panel transition hover:-translate-y-0.5 hover:border-pine/50 sm:min-h-[214px] sm:gap-3 sm:p-4 ${
                     selectedQuote?.symbol === quote.symbol ? "border-pine bg-mist" : "border-ink/10 bg-white"
                   }`}
                   onClick={() => setSelected(quote.symbol)}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-semibold">{quote.symbol}</span>
                         {isPositive ? <TrendingUp size={16} className="text-pine" /> : <TrendingDown size={16} className="text-coral" />}
                       </div>
-                      <p className="mt-1 text-xs text-ink/55">{quote.name}</p>
+                      <p className="mt-1 truncate text-xs text-ink/55">{quote.name}</p>
                     </div>
                     <SignalBadge signal={quote.signal} />
                   </div>
                   <div className="flex items-end justify-between gap-2">
-                    <span className="text-2xl font-semibold">{formatInstrumentMoney(quote, quote.price)}</span>
+                    <span className="text-xl font-semibold sm:text-2xl">{formatInstrumentMoney(quote, quote.price)}</span>
                     <span className={`font-semibold ${isPositive ? "text-pine" : "text-coral"}`}>
                       {isPositive ? "+" : ""}
                       {quote.changePercent.toFixed(2)}%
                     </span>
                   </div>
-                  <TrendSparkline quote={quote} />
-                  <RangeMeter quote={quote} />
-                  <MetricBar label="成交量壓力" value={volumeScore} tone={isPositive ? "pine" : "coral"} />
-                  <div className="grid grid-cols-2 gap-2 border-t border-ink/10 pt-3 text-[11px] text-ink/55">
+                  <div className="hidden sm:block">
+                    <TrendSparkline quote={quote} />
+                  </div>
+                  <div className="hidden sm:block">
+                    <RangeMeter quote={quote} />
+                  </div>
+                  <div className="hidden sm:block">
+                    <MetricBar label="成交量壓力" value={volumeScore} tone={isPositive ? "pine" : "coral"} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 border-t border-ink/10 pt-2 text-[11px] text-ink/55 sm:gap-2 sm:pt-3">
                     <span>開盤 {formatInstrumentMoney(quote, quote.open)}</span>
                     <span>昨收 {formatInstrumentMoney(quote, quote.previousClose)}</span>
                     <span>最高 {formatInstrumentMoney(quote, quote.high)}</span>
@@ -412,7 +717,7 @@ export function MarketResults({ snapshot }: { snapshot: MarketSnapshot }) {
               <p className="mt-4 text-sm leading-6 text-ink/65">{selectedQuote.analysis}</p>
               <Link
                 href={`/stock?symbol=${encodeURIComponent(selectedQuote.symbol)}`}
-                className="mt-4 flex items-center justify-center gap-2 rounded-md bg-pine px-4 py-2 text-sm font-semibold text-white hover:bg-ink"
+                className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-md bg-pine px-4 py-2 text-sm font-semibold text-white hover:bg-ink"
               >
                 <LineChart size={16} />
                 查看基本面深度分析

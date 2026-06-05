@@ -38,6 +38,22 @@ export type SimulationDiagnostics = {
   incomeCoverage: number;
   recommendationSummary: string;
   actionPlan: string[];
+  portfolioBlueprint: Array<{
+    title: string;
+    role: string;
+    allocationPercent: number;
+    amount: number;
+    guidance: string;
+    symbols: string[];
+  }>;
+};
+
+export type SimulationAiInsight = {
+  headline: string;
+  systemSignal: "可執行" | "需調整" | "高壓力";
+  aiSummary: string;
+  allocationGuidance: string[];
+  riskWarnings: string[];
 };
 
 export type GrowthPoint = {
@@ -56,6 +72,7 @@ export type SimulationResult = {
   growth: GrowthPoint[];
   assets: AssetAllocation[];
   diagnostics: SimulationDiagnostics;
+  aiInsight: SimulationAiInsight;
   candidates: InvestmentCandidate[];
 };
 
@@ -117,6 +134,9 @@ export type ValuationMetrics = {
   dividendYield: number | null;
   marketCap: number | null;
   roe: number | null;
+  latestPrice: number | null;
+  priceChangePercent: number | null;
+  volatilityPercent: number | null;
   asOf: string | null;
 };
 
@@ -306,4 +326,32 @@ export type MarketChatResponse = {
   source: "openai" | "groq" | "local";
   model: string | null;
   updatedAt: string;
+};
+
+export type PageContext = {
+  title: string;
+  url: string;
+  route: string;
+  capturedAt: string;
+  viewport: {
+    width: number;
+    height: number;
+  };
+  visibleText: string;
+  headings: string[];
+  formFields: Array<{
+    label: string;
+    value: string;
+    type: string;
+  }>;
+  metrics: Array<{
+    label: string;
+    value: string;
+    section?: string;
+  }>;
+  sections: Array<{
+    title: string;
+    text: string;
+  }>;
+  appState?: Record<string, unknown>;
 };

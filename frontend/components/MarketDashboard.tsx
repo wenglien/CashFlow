@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Check, ListFilter, Search, Send, X } from "lucide-react";
+import { Activity, Check, ChevronDown, ListFilter, Search, Send, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_SELECTED_SYMBOLS, MARKET_WATCHLIST, normalizeSymbols } from "@/lib/marketOptions";
@@ -57,11 +57,12 @@ const presetSelections = [
   }
 ];
 
-export function MarketDashboard() {
+export function MarketDashboard({ onSelectionChange }: { onSelectionChange?: (symbols: string[]) => void }) {
   const router = useRouter();
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(DEFAULT_SELECTED_SYMBOLS);
   const [customSymbols, setCustomSymbols] = useState("");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const [hasLoadedSavedSelection, setHasLoadedSavedSelection] = useState(false);
   const selectedSet = useMemo(() => new Set(selectedSymbols), [selectedSymbols]);
@@ -105,6 +106,10 @@ export function MarketDashboard() {
     window.localStorage.setItem(MARKET_SELECTION_STORAGE_KEY, JSON.stringify({ selectedSymbols, customSymbols }));
   }, [customSymbols, hasLoadedSavedSelection, selectedSymbols]);
 
+  useEffect(() => {
+    onSelectionChange?.(submittedSymbols);
+  }, [onSelectionChange, submittedSymbols]);
+
   function toggleSymbol(symbol: string) {
     setSelectedSymbols((current) =>
       current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol],
@@ -125,111 +130,135 @@ export function MarketDashboard() {
     router.push(`/market?${params.toString()}`);
   }
 
+  function renderSelectedChip(symbol: string) {
+    return (
+      <button
+        key={symbol}
+        type="button"
+        className="flex min-h-10 items-center gap-1 rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+        onClick={() => toggleSymbol(symbol)}
+      >
+        {symbol}
+        <X size={13} />
+      </button>
+    );
+  }
+
   return (
     <section className="grid gap-4">
-      <div className="rounded-lg border border-ink/10 bg-ink p-5 text-white shadow-panel">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="rounded-lg border border-ink/10 bg-ink p-4 text-white shadow-panel sm:p-5">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-mint">
               <Activity size={18} />
-              <span className="text-sm font-semibold uppercase tracking-[0.16em]">即時市場情報</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] sm:text-sm sm:tracking-[0.16em]">即時市場情報</span>
             </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">選擇要查詢的市場</h1>
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-white/70">
-              以台股 ETF、台灣科技股與美國大型科技股為主要分析對象，可同時選擇多個標的，送出後集中顯示市場資料與 3D 視覺化。
+            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:mt-2 sm:text-3xl">選擇要查詢的市場</h1>
+            <p className="mt-1.5 hidden max-w-2xl text-sm leading-relaxed text-white/70 sm:block">
+              以台股 ETF、台灣科技股與美國大型科技股為主要分析對象，可同時選擇多個標的，送出後集中顯示市場資料。
             </p>
           </div>
-          <div className="rounded-md bg-white/10 px-3 py-2 text-xs font-medium text-white/75">
+          <div className="shrink-0 rounded-md bg-white/10 px-3 py-2 text-xs font-medium text-white/75">
             已選 {submittedSymbols.length} 檔
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4">
+        <div className="mt-4 grid gap-3 sm:mt-6 sm:gap-4">
           <div className="rounded-lg border border-white/15 bg-black/25 p-3 sm:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-mint/90">已選市場</p>
-                <p className="mt-1 text-sm text-white/65">點擊下方按鈕開啟小視窗調整多選清單。</p>
+                <p className="mt-1 hidden text-sm text-white/65 sm:block">點擊下方按鈕開啟小視窗調整多選清單。</p>
               </div>
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-md bg-mint px-4 py-2 text-sm font-semibold text-ink hover:bg-white"
+                className="flex min-h-11 items-center gap-2 rounded-md bg-mint px-3 py-2 text-sm font-semibold text-ink hover:bg-white sm:px-4"
                 onClick={() => setIsPickerOpen(true)}
               >
                 <ListFilter size={16} />
-                選擇市場清單
+                <span className="hidden sm:inline">選擇市場清單</span>
+                <span className="sm:hidden">調整清單</span>
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 sm:hidden">
               {selectedSymbols.length ? (
-                selectedSymbols.slice(0, 14).map((symbol) => (
-                  <button
-                    key={symbol}
-                    type="button"
-                    className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20"
-                    onClick={() => toggleSymbol(symbol)}
-                  >
-                    {symbol}
-                    <X size={13} />
-                  </button>
-                ))
+                selectedSymbols.slice(0, 4).map(renderSelectedChip)
+              ) : (
+                <span className="text-sm text-white/55">尚未選擇清單標的。</span>
+              )}
+              {selectedSymbols.length > 4 ? <span className="flex min-h-10 items-center rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white/65">+{selectedSymbols.length - 4}</span> : null}
+            </div>
+            <div className="hidden flex-wrap gap-2 sm:flex">
+              {selectedSymbols.length ? (
+                selectedSymbols.slice(0, 14).map(renderSelectedChip)
               ) : (
                 <span className="text-sm text-white/55">尚未選擇清單標的，可加入自訂代號或開啟清單選擇。</span>
               )}
-              {selectedSymbols.length > 14 ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/65">+{selectedSymbols.length - 14}</span> : null}
+              {selectedSymbols.length > 14 ? <span className="flex min-h-10 items-center rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white/65">+{selectedSymbols.length - 14}</span> : null}
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
-              onClick={() => setSelectedSymbols([...MARKET_WATCHLIST])}
-            >
-              全選清單
-            </button>
-            {presetSelections.map((preset) => (
+          <button
+            type="button"
+            className="flex min-h-11 items-center justify-between rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20 sm:hidden"
+            onClick={() => setIsMobileControlsOpen((value) => !value)}
+          >
+            快捷設定與自訂標的
+            <ChevronDown size={16} className={`transition ${isMobileControlsOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          <div className={`${isMobileControlsOpen ? "grid" : "hidden"} gap-3 sm:grid sm:gap-4`}>
+            <div className="flex flex-wrap gap-2">
               <button
-                key={preset.label}
                 type="button"
-                className="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
-                onClick={() => setSelectedSymbols(preset.symbols)}
+                className="min-h-11 rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                onClick={() => setSelectedSymbols([...MARKET_WATCHLIST])}
               >
-                {preset.label}
+                全選清單
               </button>
-            ))}
-            <button
-              type="button"
-              className="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
-              onClick={() => setSelectedSymbols(DEFAULT_SELECTED_SYMBOLS)}
-            >
-              回到預設
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-1 rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
-              onClick={() => setSelectedSymbols([])}
-            >
-              <X size={15} />
-              清空
-            </button>
-          </div>
-
-          <div className="rounded-lg border border-white/15 bg-black/25 p-3 sm:p-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/55">
-              <Search size={14} aria-hidden />
-              自訂標的（可選，逗號分隔）
+              {presetSelections.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  className="min-h-11 rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                  onClick={() => setSelectedSymbols(preset.symbols)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="min-h-11 rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                onClick={() => setSelectedSymbols(DEFAULT_SELECTED_SYMBOLS)}
+              >
+                回到預設
+              </button>
+              <button
+                type="button"
+                className="flex min-h-11 items-center gap-1 rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                onClick={() => setSelectedSymbols([])}
+              >
+                <X size={15} />
+                清空
+              </button>
             </div>
-            <label className="flex min-w-0 items-center gap-2 rounded-md bg-white px-3 py-2.5 text-ink">
-              <Search size={18} className="shrink-0 text-ink/45" />
-              <input
-                className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-ink/35"
-                value={customSymbols}
-                onChange={(event) => setCustomSymbols(event.target.value)}
-                placeholder="例如 0050.TW, 2330.TW, AAPL, NVDA"
-                aria-label="自訂查詢標的符號"
-              />
-            </label>
+
+            <div className="rounded-lg border border-white/15 bg-black/25 p-3 sm:p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/55">
+                <Search size={14} aria-hidden />
+                自訂標的（可選，逗號分隔）
+              </div>
+              <label className="flex min-w-0 items-center gap-2 rounded-md bg-white px-3 py-2.5 text-ink">
+                <Search size={18} className="shrink-0 text-ink/45" />
+                <input
+                  className="min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-ink/35 sm:text-sm"
+                  value={customSymbols}
+                  onChange={(event) => setCustomSymbols(event.target.value)}
+                  placeholder="例如 0050.TW, 2330.TW, AAPL"
+                  aria-label="自訂查詢標的符號"
+                />
+              </label>
+            </div>
           </div>
 
           <button
@@ -255,7 +284,7 @@ export function MarketDashboard() {
               </div>
               <button
                 type="button"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-md hover:bg-mist"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-md hover:bg-mist"
                 onClick={() => setIsPickerOpen(false)}
                 aria-label="關閉市場清單視窗"
               >
@@ -266,21 +295,21 @@ export function MarketDashboard() {
             <div className="flex flex-wrap gap-2 border-b border-ink/10 p-4">
               <button
                 type="button"
-                className="rounded-md bg-pine px-3 py-2 text-sm font-semibold text-white hover:bg-ink"
+                className="min-h-11 rounded-md bg-pine px-3 py-2 text-sm font-semibold text-white hover:bg-ink"
                 onClick={() => setSelectedSymbols([...MARKET_WATCHLIST])}
               >
                 全選清單
               </button>
               <button
                 type="button"
-                className="rounded-md bg-mist px-3 py-2 text-sm font-semibold text-ink hover:bg-ink hover:text-white"
+                className="min-h-11 rounded-md bg-mist px-3 py-2 text-sm font-semibold text-ink hover:bg-ink hover:text-white"
                 onClick={() => setSelectedSymbols(DEFAULT_SELECTED_SYMBOLS)}
               >
                 回到預設
               </button>
               <button
                 type="button"
-                className="flex items-center gap-1 rounded-md bg-mist px-3 py-2 text-sm font-semibold text-ink hover:bg-coral hover:text-white"
+                className="flex min-h-11 items-center gap-1 rounded-md bg-mist px-3 py-2 text-sm font-semibold text-ink hover:bg-coral hover:text-white"
                 onClick={() => setSelectedSymbols([])}
               >
                 <X size={15} />
@@ -292,7 +321,7 @@ export function MarketDashboard() {
               <label className="flex items-center gap-2 rounded-md border border-ink/10 bg-mist px-3 py-2 text-ink">
                 <Search size={16} className="shrink-0 text-ink/45" />
                 <input
-                  className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-ink/35"
+                  className="min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-ink/35 sm:text-sm"
                   value={pickerQuery}
                   onChange={(event) => setPickerQuery(event.target.value)}
                   placeholder="搜尋代號或分類，例如 AAPL、2330、科技股"
@@ -308,7 +337,7 @@ export function MarketDashboard() {
                     <h3 className="text-sm font-semibold text-pine">{group.title}</h3>
                     <button
                       type="button"
-                      className="rounded-md bg-mist px-2 py-1 text-xs font-semibold text-ink/60 hover:bg-pine hover:text-white"
+                      className="min-h-9 rounded-md bg-mist px-2 py-1.5 text-xs font-semibold text-ink/60 hover:bg-pine hover:text-white"
                       onClick={() => toggleGroup(group.symbols)}
                     >
                       {group.symbols.every((symbol) => selectedSet.has(symbol)) ? "取消本組" : "選取本組"}
@@ -321,7 +350,7 @@ export function MarketDashboard() {
                         <button
                           key={symbol}
                           type="button"
-                          className={`flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${
+                          className={`flex min-h-11 items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${
                             checked
                               ? "border-pine bg-mint text-ink"
                               : "border-ink/10 bg-white text-ink hover:border-pine/70 hover:bg-mist"
@@ -342,7 +371,7 @@ export function MarketDashboard() {
               <span className="text-sm font-medium text-ink/65">目前已選 {selectedSymbols.length} 檔</span>
               <button
                 type="button"
-                className="rounded-md bg-pine px-4 py-2 text-sm font-semibold text-white hover:bg-ink"
+                className="min-h-11 rounded-md bg-pine px-4 py-2 text-sm font-semibold text-white hover:bg-ink"
                 onClick={() => setIsPickerOpen(false)}
               >
                 完成選擇

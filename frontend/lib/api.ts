@@ -5,19 +5,23 @@ import type {
   FundamentalAnalysis,
   MarketChatResponse,
   MarketSnapshot,
+  PageContext,
   PortfolioInput,
   ScreenerRequestInput,
   ScreenerResult,
   SimulationResult
 } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NODE_ENV === "production" ? "" : "http://localhost:8000";
 
 async function requestJson<T>(url: string, init?: RequestInit, timeoutMs = 15000): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   const response = await fetch(url, {
     ...init,
-    signal: AbortSignal.timeout(timeoutMs)
-  });
+    signal: controller.signal
+  }).finally(() => clearTimeout(timeoutId));
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -27,14 +31,14 @@ async function requestJson<T>(url: string, init?: RequestInit, timeoutMs = 15000
   return response.json();
 }
 
-export async function runSimulation(portfolio: PortfolioInput): Promise<SimulationResult> {
+export async function runSimulation(portfolio: PortfolioInput, marketSymbols: string[] = []): Promise<SimulationResult> {
   return requestJson<SimulationResult>(`${API_URL}/api/simulation/run`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: "Bearer dev-token"
     },
-    body: JSON.stringify({ portfolio, simulations: 3000, seed: 42 })
+    body: JSON.stringify({ portfolio, simulations: 3000, seed: 42, marketSymbols })
   });
 }
 
@@ -68,7 +72,8 @@ export async function getComprehensiveAnalysis(symbol: string): Promise<Comprehe
         Authorization: "Bearer dev-token"
       },
       cache: "no-store"
-    }
+    },
+    30000
   );
 }
 
@@ -102,13 +107,13 @@ export async function runScreener(input: ScreenerRequestInput): Promise<Screener
   );
 }
 
-export async function askMarketAi(symbols: string[], question: string): Promise<MarketChatResponse> {
+export async function askMarketAi(symbols: string[], question: string, pageContext?: PageContext): Promise<MarketChatResponse> {
   return requestJson<MarketChatResponse>(`${API_URL}/api/ai/market-chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: "Bearer dev-token"
     },
-    body: JSON.stringify({ symbols, question })
+    body: JSON.stringify({ symbols, question, pageContext })
   });
 }

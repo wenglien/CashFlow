@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -35,6 +35,15 @@ class InvestmentCandidate(BaseModel):
     rationale: str
 
 
+class PortfolioAction(BaseModel):
+    title: str
+    role: str
+    allocationPercent: float
+    amount: float
+    guidance: str
+    symbols: list[str]
+
+
 class SimulationDiagnostics(BaseModel):
     expectedAnnualReturn: float
     expectedDividendYield: float
@@ -44,6 +53,15 @@ class SimulationDiagnostics(BaseModel):
     incomeCoverage: float
     recommendationSummary: str
     actionPlan: list[str]
+    portfolioBlueprint: list[PortfolioAction]
+
+
+class SimulationAiInsight(BaseModel):
+    headline: str
+    systemSignal: Literal["可執行", "需調整", "高壓力"]
+    aiSummary: str
+    allocationGuidance: list[str]
+    riskWarnings: list[str]
 
 
 class Portfolio(BaseModel):
@@ -61,6 +79,7 @@ class SimulationRequest(BaseModel):
     portfolio: PortfolioCreate
     simulations: int = Field(default=3000, ge=100, le=20000)
     seed: int | None = 42
+    marketSymbols: list[str] = Field(default_factory=list, max_length=20)
 
 
 class GrowthPoint(BaseModel):
@@ -79,6 +98,7 @@ class SimulationResult(BaseModel):
     growth: list[GrowthPoint]
     assets: list[AssetAllocation]
     diagnostics: SimulationDiagnostics
+    aiInsight: SimulationAiInsight
     candidates: list[InvestmentCandidate]
 
 
@@ -145,6 +165,9 @@ class ValuationMetrics(BaseModel):
     dividendYield: float | None = None
     marketCap: float | None = None
     roe: float | None = None
+    latestPrice: float | None = None
+    priceChangePercent: float | None = None
+    volatilityPercent: float | None = None
     asOf: str | None = None
 
 
@@ -338,6 +361,7 @@ class ScreenerResult(BaseModel):
 class MarketChatRequest(BaseModel):
     symbols: list[str] = Field(min_length=1, max_length=20)
     question: str = Field(min_length=1, max_length=1200)
+    pageContext: dict[str, Any] | None = None
 
 
 class MarketChatResponse(BaseModel):

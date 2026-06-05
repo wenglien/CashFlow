@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/simulation", tags=["simulation"])
 @router.post("/run", response_model=SimulationResult)
 def run_simulation(payload: SimulationRequest, _: str = Depends(get_current_user)) -> SimulationResult:
     assets = generate_portfolio(payload.portfolio.riskLevel)
-    candidates = generate_candidates(payload.portfolio.riskLevel)
+    candidates = generate_candidates(payload.portfolio.riskLevel, payload.marketSymbols)
     return run_monte_carlo(
         initial_capital=payload.portfolio.totalCapital,
         target_monthly_income=payload.portfolio.targetMonthlyIncome,
